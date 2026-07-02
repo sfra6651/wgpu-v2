@@ -1,5 +1,4 @@
 use glam::Mat4;
-use rand::RngExt;
 
 use crate::{utils::model_matrix, world::Entity};
 

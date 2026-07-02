@@ -3,6 +3,15 @@ name = "wgpu-v2"
 version = "0.1.0"
 edition = "2024"
 
+# Optimize our own crate a little in dev — fast to compile, much faster at runtime.
+[profile.dev]
+opt-level = 1
+
+# Optimize dependencies (glam, wgpu, image, ...) fully even in dev builds.
+# They rarely change, so the slow compile happens once; runtime is release-fast.
+[profile.dev.package."*"]
+opt-level = 3
+
 [dependencies]
 bytemuck = { version = "1", features = ["derive"] }
 image = { version = "0.25.10", features = ["png", "jpeg"] }

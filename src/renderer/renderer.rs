@@ -4,9 +4,11 @@ use wgpu::CurrentSurfaceTexture;
 use winit::window::Window;
 
 use crate::{
-  model_transforms::ModelTransforms,
-  uniforms::{UniformManager, UniformVariant},
-  utils::{Vertex, model_matrix, pos_to_trangle, projection_matrix, unit_square},
+  renderer::{
+    model_transforms::ModelTransforms,
+    uniform::{UniformManager, UniformVariant},
+  },
+  utils::{Vertex, projection_matrix, unit_square},
   world::World,
 };
 
@@ -101,7 +103,7 @@ impl Renderer {
       .device
       .create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
-        source: wgpu::ShaderSource::Wgsl(include_str!("triangle.wgsl").into()),
+        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/square.wgsl").into()),
       });
 
     let pipeline_layout = self

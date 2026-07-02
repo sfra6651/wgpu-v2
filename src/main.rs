@@ -6,13 +6,11 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Fullscreen, Window, WindowId};
 
 use crate::frame_counter::FrameCounter;
-use crate::renderer::Renderer;
+use crate::renderer::renderer::Renderer;
 use crate::world::World;
 
 mod frame_counter;
-mod model_transforms;
 mod renderer;
-mod uniforms;
 mod utils;
 mod world;
 
@@ -76,7 +74,8 @@ impl ApplicationHandler for App {
           if !self.is_vertex_data_uploaded {
             renderer.upload_square();
           }
-          renderer.render(window, self.world.as_ref().unwrap())
+          renderer.render(window, self.world.as_ref().unwrap());
+          self.world.as_mut().unwrap().update(window);
         }
 
         // Queue a RedrawRequested event.
