@@ -1,14 +1,16 @@
 use std::sync::Arc;
 
-use wgpu::CurrentSurfaceTexture;
+use wgpu::{ColorTargetState, CurrentSurfaceTexture};
 use winit::window::Window;
 
 use crate::{
   renderer::{
     model_transforms::ModelTransforms,
+    texture::Texture,
     uniform::{UniformManager, UniformVariant},
+    vertex::{Vertex, unit_square},
   },
-  utils::{Vertex, projection_matrix, unit_square},
+  utils::projection_matrix,
   world::World,
 };
 
@@ -20,9 +22,12 @@ pub struct Renderer {
   queue: wgpu::Queue,
   shape_render_pipeline: Option<wgpu::RenderPipeline>,
   shape_render_pipeline_layout: Option<wgpu::PipelineLayout>,
+  texture_render_pipeline: Option<wgpu::RenderPipeline>,
+  texture_render_pipeline_layout: Option<wgpu::PipelineLayout>,
   square_buffer: wgpu::Buffer,
   uniform_manager: UniformManager,
   model_transforms: ModelTransforms,
+  texture: Texture,
 }
 
 impl Renderer {
@@ -84,6 +89,8 @@ impl Renderer {
 
     let model_transforms = ModelTransforms::new(&device);
 
+    let texture = Texture::new(&device, &queue);
+
     Self {
       surface,
       instance,
@@ -92,13 +99,80 @@ impl Renderer {
       queue,
       shape_render_pipeline: None,
       shape_render_pipeline_layout: None,
+      texture_render_pipeline: None,
+      texture_render_pipeline_layout: None,
       square_buffer,
       uniform_manager,
       model_transforms,
+      texture,
     }
   }
 
-  pub fn create_shape_render_pipeline(&mut self) {
+  pub fn create_texture_render_pipline(&mut self) -> &mut Self {
+    let shader = self
+      .device
+      .create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: None,
+        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/texture.wgsl").into()),
+      });
+
+    let pipeline_layout = self
+      .device
+      .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[
+          Some(
+            &self
+              .uniform_manager
+              .get(UniformVariant::Projection)
+              .bind_group_layout,
+          ),
+          Some(&self.model_transforms.bind_group_layout),
+          Some(&self.texture.bind_group_layout),
+        ],
+        immediate_size: 0,
+      });
+
+    let swapchain_capabilities = self.surface.get_capabilities(&self.adapter);
+    let swapchain_format = swapchain_capabilities.formats[0];
+
+    let buffer_layout = Vertex::desc();
+
+    let render_pipeline = self
+      .device
+      .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: None,
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+          module: &shader,
+          entry_point: Some("vs_main"),
+          buffers: &[buffer_layout],
+          compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+          module: &shader,
+          entry_point: Some("fs_main"),
+          compilation_options: Default::default(),
+          targets: &[Some(ColorTargetState {
+            format: swapchain_format,
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+            write_mask: wgpu::ColorWrites::ALL,
+          })],
+        }),
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview_mask: None,
+        cache: None,
+      });
+
+    self.texture_render_pipeline = Some(render_pipeline);
+    self.texture_render_pipeline_layout = Some(pipeline_layout);
+
+    self
+  }
+
+  pub fn create_shape_render_pipeline(&mut self) -> &mut Self {
     let shader = self
       .device
       .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -153,6 +227,8 @@ impl Renderer {
 
     self.shape_render_pipeline = Some(render_pipeline);
     self.shape_render_pipeline_layout = Some(pipeline_layout);
+
+    self
   }
 
   pub fn upload_square(&self) {
@@ -168,6 +244,10 @@ impl Renderer {
       .write_transforms(&self.queue, &world.entities);
 
     let Some(pipeline) = &self.shape_render_pipeline else {
+      return;
+    };
+
+    let Some(texture_pipeline) = &self.texture_render_pipeline else {
       return;
     };
 
@@ -217,7 +297,8 @@ impl Renderer {
         multiview_mask: None,
       });
 
-      rpass.set_pipeline(pipeline);
+      //rpass.set_pipeline(pipeline);
+      rpass.set_pipeline(texture_pipeline);
       rpass.set_vertex_buffer(0, self.square_buffer.slice(..));
       rpass.set_bind_group(
         0,
@@ -228,6 +309,7 @@ impl Renderer {
         &[],
       );
       rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
+      rpass.set_bind_group(2, &self.texture.bind_group, &[]);
 
       rpass.draw(0..6, 0..self.model_transforms.count as u32)
     }

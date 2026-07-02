@@ -31,7 +31,8 @@ impl App {
       .renderer
       .as_mut()
       .unwrap()
-      .create_shape_render_pipeline();
+      .create_shape_render_pipeline()
+      .create_texture_render_pipline();
   }
 }
 
