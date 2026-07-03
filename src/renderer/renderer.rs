@@ -6,28 +6,33 @@ use winit::window::Window;
 use crate::{
   renderer::{
     model_transforms::ModelTransforms,
+    pipeline::{CreatePipelineDesc, Pipeline, PipelineType, create_pipeline},
     texture::Texture,
     uniform::{UniformManager, UniformVariant},
-    vertex::{Vertex, unit_square},
+    vertex::{Vertex, grid_vertices, unit_square},
   },
-  utils::projection_matrix,
   world::World,
 };
 
 pub struct Renderer {
   instance: wgpu::Instance,
-  surface: wgpu::Surface<'static>,
-  adapter: wgpu::Adapter,
-  device: wgpu::Device,
+  pub surface: wgpu::Surface<'static>,
+  pub adapter: wgpu::Adapter,
+  pub device: wgpu::Device,
   queue: wgpu::Queue,
   shape_render_pipeline: Option<wgpu::RenderPipeline>,
   shape_render_pipeline_layout: Option<wgpu::PipelineLayout>,
   texture_render_pipeline: Option<wgpu::RenderPipeline>,
   texture_render_pipeline_layout: Option<wgpu::PipelineLayout>,
+  grid_render_pipeline_layout: Option<wgpu::PipelineLayout>,
+  grid_render_pipeline: Option<wgpu::RenderPipeline>,
+  grid_vertex_count: u32,
   square_buffer: wgpu::Buffer,
-  uniform_manager: UniformManager,
-  model_transforms: ModelTransforms,
-  texture: Texture,
+  grid_buffer: Option<wgpu::Buffer>,
+  pipelines: [Option<Pipeline>; PipelineType::COUNT],
+  pub uniform_manager: UniformManager,
+  pub model_transforms: ModelTransforms,
+  pub texture: Texture,
 }
 
 impl Renderer {
@@ -101,11 +106,126 @@ impl Renderer {
       shape_render_pipeline_layout: None,
       texture_render_pipeline: None,
       texture_render_pipeline_layout: None,
+      grid_render_pipeline_layout: None,
+      grid_render_pipeline: None,
+      grid_buffer: None,
+      grid_vertex_count: 0,
       square_buffer,
+      pipelines: std::array::from_fn(|_| None),
       uniform_manager,
       model_transforms,
       texture,
     }
+  }
+
+  pub fn create_pipelines(&mut self) {
+    let swapchain_format = self.surface.get_capabilities(&self.adapter).formats[0];
+
+    self.pipelines[PipelineType::Texture as usize] = Pipeline::new(
+      &self.device,
+      wgpu::ShaderSource::Wgsl(include_str!("../shaders/texture.wgsl").into()),
+      CreatePipelineDesc {
+        pipeline_type: PipelineType::Texture,
+        bind_group_layouts: &[
+          Some(
+            &self
+              .uniform_manager
+              .get(UniformVariant::Projection)
+              .bind_group_layout,
+          ),
+          Some(&self.model_transforms.bind_group_layout),
+          Some(&self.texture.bind_group_layout),
+        ],
+        targets: &[Some(ColorTargetState {
+          format: swapchain_format,
+          blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+          write_mask: wgpu::ColorWrites::ALL,
+        })],
+        primitive: wgpu::PrimitiveState::default(),
+      },
+    );
+
+    self.pipelines[PipelineType::Gridlines as usize] = Pipeline::new(
+      &self.device,
+      wgpu::ShaderSource::Wgsl(include_str!("../shaders/grid.wgsl").into()),
+      CreatePipelineDesc {},
+    );
+
+    self.pipelines[PipelineType::SimpleRect as usize] = Pipeline::new(
+      &self.device,
+      wgpu::ShaderSource::Wgsl(include_str!("../shaders/square.wgsl").into()),
+      CreatePipelineDesc {},
+    );
+  }
+
+  pub fn create_grid_render_pipeline(&mut self) -> &mut Self {
+    let shader = self
+      .device
+      .create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("grid shader"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/grid.wgsl").into()),
+      });
+
+    let pipeline_layout = self
+      .device
+      .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("grid pipeline layout"),
+        bind_group_layouts: &[Some(
+          &self
+            .uniform_manager
+            .get(UniformVariant::Projection)
+            .bind_group_layout,
+        )],
+        immediate_size: 0,
+      });
+
+    let swapchain_format = self.surface.get_capabilities(&self.adapter).formats[0];
+
+    let render_pipeline = self
+      .device
+      .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("grid pipeline"),
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+          module: &shader,
+          entry_point: Some("vs_main"),
+          buffers: &[Vertex::desc()],
+          compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+          module: &shader,
+          entry_point: Some("fs_main"),
+          compilation_options: Default::default(),
+          targets: &[Some(swapchain_format.into())],
+        }),
+        primitive: wgpu::PrimitiveState {
+          topology: wgpu::PrimitiveTopology::LineList,
+          ..Default::default()
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview_mask: None,
+        cache: None,
+      });
+
+    self.grid_render_pipeline = Some(render_pipeline);
+    self.grid_render_pipeline_layout = Some(pipeline_layout);
+    self
+  }
+
+  pub fn upload_grid(&mut self, size: glam::Vec2, spacing: f32) {
+    let verts = grid_vertices(size, spacing);
+    let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+      label: Some("grid buffer"),
+      size: (size_of::<Vertex>() * verts.len()) as u64,
+      usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+      mapped_at_creation: false,
+    });
+    self
+      .queue
+      .write_buffer(&buffer, 0, bytemuck::cast_slice(&verts));
+    self.grid_vertex_count = verts.len() as u32;
+    self.grid_buffer = Some(buffer);
   }
 
   pub fn create_texture_render_pipline(&mut self) -> &mut Self {
@@ -243,10 +363,6 @@ impl Renderer {
       .model_transforms
       .write_transforms(&self.queue, &world.entities);
 
-    let Some(pipeline) = &self.shape_render_pipeline else {
-      return;
-    };
-
     let Some(texture_pipeline) = &self.texture_render_pipeline else {
       return;
     };
@@ -265,11 +381,12 @@ impl Renderer {
 
     let width = window.inner_size().width;
     let height = window.inner_size().height;
-    let proj_mat = projection_matrix(width as f32, height as f32);
+    let aspect = width as f32 / height.max(1) as f32;
+    let view_proj = world.camera.view_projection(aspect);
     self.queue.write_buffer(
       &self.uniform_manager.get(UniformVariant::Projection).buffer,
       0,
-      bytemuck::cast_slice(&[proj_mat.to_cols_array()]),
+      bytemuck::cast_slice(&[view_proj.to_cols_array()]),
     );
 
     let view = frame
@@ -296,6 +413,22 @@ impl Renderer {
         occlusion_query_set: None,
         multiview_mask: None,
       });
+
+      if let (Some(grid_pipeline), Some(grid_buffer)) =
+        (&self.grid_render_pipeline, &self.grid_buffer)
+      {
+        rpass.set_pipeline(grid_pipeline);
+        rpass.set_bind_group(
+          0,
+          &self
+            .uniform_manager
+            .get(UniformVariant::Projection)
+            .bind_group,
+          &[],
+        );
+        rpass.set_vertex_buffer(0, grid_buffer.slice(..));
+        rpass.draw(0..self.grid_vertex_count, 0..1); // ONE instance
+      }
 
       //rpass.set_pipeline(pipeline);
       rpass.set_pipeline(texture_pipeline);

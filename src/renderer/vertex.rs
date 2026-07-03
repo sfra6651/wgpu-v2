@@ -29,11 +29,32 @@ impl std::convert::From<((f32, f32, f32), (f32, f32))> for Vertex {
 
 pub fn unit_square() -> [Vertex; 6] {
   [
-    ((-0.5, -0.5, 0.0), (0.0, 0.0)).into(),
-    ((0.5, -0.5, 0.0), (1.0, 0.0)).into(),
-    ((0.5, 0.5, 0.0), (1.0, 1.0)).into(),
-    ((-0.5, -0.5, 0.0), (0.0, 0.0)).into(),
-    ((0.5, 0.5, 0.0), (1.0, 1.0)).into(),
-    ((-0.5, 0.5, 0.0), (0.0, 1.0)).into(),
+    ((-0.5, -0.5, 0.0), (0.0, 1.0)).into(),
+    ((0.5, -0.5, 0.0), (1.0, 1.0)).into(),
+    ((0.5, 0.5, 0.0), (1.0, 0.0)).into(),
+    ((-0.5, -0.5, 0.0), (0.0, 1.0)).into(),
+    ((0.5, 0.5, 0.0), (1.0, 0.0)).into(),
+    ((-0.5, 0.5, 0.0), (0.0, 0.0)).into(),
   ]
+}
+
+pub fn grid_vertices(size: glam::Vec2, spacing: f32) -> Vec<Vertex> {
+  let mut v: Vec<Vertex> = Vec::new();
+
+  let cols = (size.x / spacing) as u32;
+  let rows = (size.y / spacing) as u32;
+
+  for i in 0..=cols {
+    let x = i as f32 * spacing;
+    v.push(((x, 0.0, 0.0), (0.0, 0.0)).into());
+    v.push(((x, size.y, 0.0), (0.0, 0.0)).into());
+  }
+
+  for i in 0..=rows {
+    let y = i as f32 * spacing;
+    v.push(((0.0, y, 0.0), (0.0, 0.0)).into());
+    v.push(((size.x, y, 0.0), (0.0, 0.0)).into());
+  }
+
+  v
 }

@@ -1,15 +1,19 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Fullscreen, Window, WindowId};
 
+use crate::camera_controller::update_camera;
 use crate::frame_counter::FrameCounter;
 use crate::player_controller::update_player;
 use crate::renderer::renderer::Renderer;
 use crate::world::World;
 
+mod camera;
+mod camera_controller;
 mod entity;
 mod frame_counter;
 mod player_controller;
@@ -17,25 +21,33 @@ mod renderer;
 mod utils;
 mod world;
 
+const GAME_UPDATES_PER_SEC: f32 = 1.0 / 60.0; // seconds per fixed simulation step (60 Hz)
+
 #[derive(Default)]
 struct App {
   window: Option<Arc<Window>>,
   frame_counter: FrameCounter,
   renderer: Option<Renderer>,
-  is_vertex_data_uploaded: bool,
   world: Option<World>,
+  last_update: Option<Instant>,
+  accumulator: f32,
 }
 
 impl App {
   fn init(&mut self, window: Arc<Window>) {
-    self.world = Some(World::new(&window.clone()));
+    self.world = Some(World::new());
     self.renderer = Some(pollster::block_on(Renderer::new(window)));
     self
       .renderer
       .as_mut()
       .unwrap()
       .create_shape_render_pipeline()
-      .create_texture_render_pipline();
+      .create_texture_render_pipline()
+      .create_grid_render_pipeline();
+
+    let size = self.world.as_ref().unwrap().size;
+    self.renderer.as_mut().unwrap().upload_grid(size, 1.0); // 1.0-unit spacing
+    self.renderer.as_mut().unwrap().upload_square();
   }
 }
 
@@ -71,17 +83,35 @@ impl ApplicationHandler for App {
         // the program to gracefully handle redraws requested by the OS.
 
         self.frame_counter.update(true);
+
+        // Advance the fixed-timestep accumulator by real elapsed time.
+        let now = Instant::now();
+        let frame_dt = self
+          .last_update
+          .map(|t| now.duration_since(t).as_secs_f32())
+          .unwrap_or(0.0);
+        self.last_update = Some(now);
+        self.accumulator += frame_dt;
+
         // Draw.
         if let Some(window) = self.window.as_ref()
           && let Some(renderer) = self.renderer.as_mut()
         {
-          if !self.is_vertex_data_uploaded {
-            renderer.upload_square();
+          // Fixed-rate update, capped at one step per frame (no catch-up queue).
+          if self.accumulator >= GAME_UPDATES_PER_SEC {
+            if let Some(world) = self.world.as_mut() {
+              world.update();
+            }
+            self.accumulator -= GAME_UPDATES_PER_SEC;
+
+            // Still a full step behind? We're running below 60 Hz — drop the
+            // backlog and run in slow motion rather than queuing updates.
+            if self.accumulator >= GAME_UPDATES_PER_SEC {
+              self.accumulator = 0.0;
+            }
           }
+
           renderer.render(window, self.world.as_ref().unwrap());
-          if let Some(world) = self.world.as_mut() {
-            world.update();
-          }
         }
 
         // Queue a RedrawRequested event.
@@ -97,7 +127,8 @@ impl ApplicationHandler for App {
         is_synthetic: _,
       } => {
         if let Some(world) = self.world.as_mut() {
-          update_player(world, event)
+          update_player(world, &event);
+          update_camera(world, &event);
         }
       }
       _ => (),
