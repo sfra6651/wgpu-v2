@@ -6,10 +6,13 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Fullscreen, Window, WindowId};
 
 use crate::frame_counter::FrameCounter;
+use crate::player_controller::update_player;
 use crate::renderer::renderer::Renderer;
 use crate::world::World;
 
+mod entity;
 mod frame_counter;
+mod player_controller;
 mod renderer;
 mod utils;
 mod world;
@@ -76,7 +79,9 @@ impl ApplicationHandler for App {
             renderer.upload_square();
           }
           renderer.render(window, self.world.as_ref().unwrap());
-          self.world.as_mut().unwrap().update(window);
+          if let Some(world) = self.world.as_mut() {
+            world.update();
+          }
         }
 
         // Queue a RedrawRequested event.
@@ -85,6 +90,15 @@ impl ApplicationHandler for App {
         // applications which do not always need to. Applications that redraw continuously
         // can render here instead.
         self.window.as_ref().unwrap().request_redraw();
+      }
+      WindowEvent::KeyboardInput {
+        device_id: _,
+        event,
+        is_synthetic: _,
+      } => {
+        if let Some(world) = self.world.as_mut() {
+          update_player(world, event)
+        }
       }
       _ => (),
     }

@@ -1,6 +1,6 @@
 use glam::Mat4;
 
-use crate::{utils::model_matrix, world::Entity};
+use crate::{entity::Entity, utils::model_matrix};
 
 pub struct ModelTransforms {
   pub buffer: wgpu::Buffer,
