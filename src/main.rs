@@ -6,14 +6,12 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Fullscreen, Window, WindowId};
 
-use crate::camera_controller::update_camera;
 use crate::frame_counter::FrameCounter;
 use crate::player_controller::update_player;
 use crate::renderer::renderer::Renderer;
 use crate::world::World;
 
 mod camera;
-mod camera_controller;
 mod entity;
 mod frame_counter;
 mod player_controller;
@@ -37,13 +35,7 @@ impl App {
   fn init(&mut self, window: Arc<Window>) {
     self.world = Some(World::new());
     self.renderer = Some(pollster::block_on(Renderer::new(window)));
-    self
-      .renderer
-      .as_mut()
-      .unwrap()
-      .create_shape_render_pipeline()
-      .create_texture_render_pipline()
-      .create_grid_render_pipeline();
+    self.renderer.as_mut().unwrap().create_pipelines();
 
     let size = self.world.as_ref().unwrap().size;
     self.renderer.as_mut().unwrap().upload_grid(size, 1.0); // 1.0-unit spacing
@@ -128,7 +120,6 @@ impl ApplicationHandler for App {
       } => {
         if let Some(world) = self.world.as_mut() {
           update_player(world, &event);
-          update_camera(world, &event);
         }
       }
       _ => (),

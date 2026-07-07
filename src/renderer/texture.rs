@@ -7,10 +7,8 @@ pub struct Texture {
 }
 
 impl Texture {
-  pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
-    let img = image::load_from_memory(include_bytes!("../assets/goblin.png"))
-      .unwrap()
-      .to_rgba8();
+  pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, path: &str, name: &str) -> Self {
+    let img = image::open(path).unwrap().to_rgba8();
     let (width, height) = img.dimensions();
     let rgba = img.into_raw();
 
@@ -21,7 +19,7 @@ impl Texture {
     };
 
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-      label: Some("goblin"),
+      label: Some(name),
       size,
       mip_level_count: 1,
       sample_count: 1,
@@ -50,7 +48,7 @@ impl Texture {
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-      label: Some("goblin sampler"),
+      label: Some(&format!("{} sampler", name)),
       address_mode_u: wgpu::AddressMode::ClampToEdge,
       address_mode_v: wgpu::AddressMode::ClampToEdge,
       address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -61,7 +59,7 @@ impl Texture {
     });
 
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-      label: Some("goblin bind group layout"),
+      label: Some(&format!("{} bind group layout", name)),
       entries: &[
         wgpu::BindGroupLayoutEntry {
           binding: 0,
@@ -83,7 +81,7 @@ impl Texture {
     });
 
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-      label: Some("goblin bind group"),
+      label: Some(&format!("{} bind group", name)),
       layout: &bind_group_layout,
       entries: &[
         wgpu::BindGroupEntry {

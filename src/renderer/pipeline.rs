@@ -14,12 +14,10 @@ impl PipelineType {
 }
 
 pub struct Pipeline {
-  pub layout: wgpu::PipelineLayout,
   pub pipeline: wgpu::RenderPipeline,
 }
 
 pub struct CreatePipelineDesc<'a> {
-  pub pipeline_type: PipelineType,
   pub bind_group_layouts: &'a [Option<&'a wgpu::BindGroupLayout>],
   pub targets: &'a [Option<wgpu::ColorTargetState>],
   pub primitive: wgpu::PrimitiveState,
@@ -66,6 +64,6 @@ impl Pipeline {
       cache: None,
     });
 
-    Some(Self { layout, pipeline })
+    Some(Self { pipeline })
   }
 }

@@ -4,9 +4,10 @@ use wgpu::{ColorTargetState, CurrentSurfaceTexture};
 use winit::window::Window;
 
 use crate::{
+  entity::{Entity, Facing},
   renderer::{
     model_transforms::ModelTransforms,
-    pipeline::{CreatePipelineDesc, Pipeline, PipelineType, create_pipeline},
+    pipeline::{CreatePipelineDesc, Pipeline, PipelineType},
     texture::Texture,
     uniform::{UniformManager, UniformVariant},
     vertex::{Vertex, grid_vertices, unit_square},
@@ -15,24 +16,19 @@ use crate::{
 };
 
 pub struct Renderer {
-  instance: wgpu::Instance,
-  pub surface: wgpu::Surface<'static>,
-  pub adapter: wgpu::Adapter,
-  pub device: wgpu::Device,
+  surface: wgpu::Surface<'static>,
+  adapter: wgpu::Adapter,
+  device: wgpu::Device,
   queue: wgpu::Queue,
-  shape_render_pipeline: Option<wgpu::RenderPipeline>,
-  shape_render_pipeline_layout: Option<wgpu::PipelineLayout>,
-  texture_render_pipeline: Option<wgpu::RenderPipeline>,
-  texture_render_pipeline_layout: Option<wgpu::PipelineLayout>,
-  grid_render_pipeline_layout: Option<wgpu::PipelineLayout>,
-  grid_render_pipeline: Option<wgpu::RenderPipeline>,
+  pipelines: [Option<Pipeline>; PipelineType::COUNT],
   grid_vertex_count: u32,
   square_buffer: wgpu::Buffer,
   grid_buffer: Option<wgpu::Buffer>,
-  pipelines: [Option<Pipeline>; PipelineType::COUNT],
-  pub uniform_manager: UniformManager,
-  pub model_transforms: ModelTransforms,
-  pub texture: Texture,
+  uniform_manager: UniformManager,
+  model_transforms: ModelTransforms,
+  texture: Texture,
+  direction_textures: [Texture; 8],
+  walking_animation_textures_s: [Texture; 4],
 }
 
 impl Renderer {
@@ -94,20 +90,38 @@ impl Renderer {
 
     let model_transforms = ModelTransforms::new(&device);
 
-    let texture = Texture::new(&device, &queue);
+    let texture = Texture::new(
+      &device,
+      &queue,
+      "src/assets/goblin/goblin_0001.png",
+      "goblin",
+    );
+
+    let texture_set: [Texture; 8] = std::array::from_fn(|i| {
+      let n = i + 1;
+      Texture::new(
+        &device,
+        &queue,
+        &format!("src/assets/goblin/goblin_000{}.png", n),
+        &format!("goblin_{}", n),
+      )
+    });
+
+    let walking_animation_textures_s: [Texture; 4] = std::array::from_fn(|i| {
+      let n = i + 1;
+      Texture::new(
+        &device,
+        &queue,
+        &format!("src/assets/goblin_run_s/run_s_000{}.png", n),
+        &format!("goblin_{}", n),
+      )
+    });
 
     Self {
       surface,
-      instance,
       adapter,
       device,
       queue,
-      shape_render_pipeline: None,
-      shape_render_pipeline_layout: None,
-      texture_render_pipeline: None,
-      texture_render_pipeline_layout: None,
-      grid_render_pipeline_layout: None,
-      grid_render_pipeline: None,
       grid_buffer: None,
       grid_vertex_count: 0,
       square_buffer,
@@ -115,6 +129,8 @@ impl Renderer {
       uniform_manager,
       model_transforms,
       texture,
+      direction_textures: texture_set,
+      walking_animation_textures_s,
     }
   }
 
@@ -125,7 +141,6 @@ impl Renderer {
       &self.device,
       wgpu::ShaderSource::Wgsl(include_str!("../shaders/texture.wgsl").into()),
       CreatePipelineDesc {
-        pipeline_type: PipelineType::Texture,
         bind_group_layouts: &[
           Some(
             &self
@@ -148,69 +163,38 @@ impl Renderer {
     self.pipelines[PipelineType::Gridlines as usize] = Pipeline::new(
       &self.device,
       wgpu::ShaderSource::Wgsl(include_str!("../shaders/grid.wgsl").into()),
-      CreatePipelineDesc {},
-    );
-
-    self.pipelines[PipelineType::SimpleRect as usize] = Pipeline::new(
-      &self.device,
-      wgpu::ShaderSource::Wgsl(include_str!("../shaders/square.wgsl").into()),
-      CreatePipelineDesc {},
-    );
-  }
-
-  pub fn create_grid_render_pipeline(&mut self) -> &mut Self {
-    let shader = self
-      .device
-      .create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("grid shader"),
-        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/grid.wgsl").into()),
-      });
-
-    let pipeline_layout = self
-      .device
-      .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("grid pipeline layout"),
+      CreatePipelineDesc {
         bind_group_layouts: &[Some(
           &self
             .uniform_manager
             .get(UniformVariant::Projection)
             .bind_group_layout,
         )],
-        immediate_size: 0,
-      });
-
-    let swapchain_format = self.surface.get_capabilities(&self.adapter).formats[0];
-
-    let render_pipeline = self
-      .device
-      .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("grid pipeline"),
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-          module: &shader,
-          entry_point: Some("vs_main"),
-          buffers: &[Vertex::desc()],
-          compilation_options: Default::default(),
-        },
-        fragment: Some(wgpu::FragmentState {
-          module: &shader,
-          entry_point: Some("fs_main"),
-          compilation_options: Default::default(),
-          targets: &[Some(swapchain_format.into())],
-        }),
+        targets: &[Some(swapchain_format.into())],
         primitive: wgpu::PrimitiveState {
           topology: wgpu::PrimitiveTopology::LineList,
           ..Default::default()
         },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        multiview_mask: None,
-        cache: None,
-      });
+      },
+    );
 
-    self.grid_render_pipeline = Some(render_pipeline);
-    self.grid_render_pipeline_layout = Some(pipeline_layout);
-    self
+    self.pipelines[PipelineType::SimpleRect as usize] = Pipeline::new(
+      &self.device,
+      wgpu::ShaderSource::Wgsl(include_str!("../shaders/square.wgsl").into()),
+      CreatePipelineDesc {
+        bind_group_layouts: &[
+          Some(
+            &self
+              .uniform_manager
+              .get(UniformVariant::Projection)
+              .bind_group_layout,
+          ),
+          Some(&self.model_transforms.bind_group_layout),
+        ],
+        targets: &[Some(swapchain_format.into())],
+        primitive: wgpu::PrimitiveState::default(),
+      },
+    );
   }
 
   pub fn upload_grid(&mut self, size: glam::Vec2, spacing: f32) {
@@ -228,129 +212,6 @@ impl Renderer {
     self.grid_buffer = Some(buffer);
   }
 
-  pub fn create_texture_render_pipline(&mut self) -> &mut Self {
-    let shader = self
-      .device
-      .create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: None,
-        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/texture.wgsl").into()),
-      });
-
-    let pipeline_layout = self
-      .device
-      .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        bind_group_layouts: &[
-          Some(
-            &self
-              .uniform_manager
-              .get(UniformVariant::Projection)
-              .bind_group_layout,
-          ),
-          Some(&self.model_transforms.bind_group_layout),
-          Some(&self.texture.bind_group_layout),
-        ],
-        immediate_size: 0,
-      });
-
-    let swapchain_capabilities = self.surface.get_capabilities(&self.adapter);
-    let swapchain_format = swapchain_capabilities.formats[0];
-
-    let buffer_layout = Vertex::desc();
-
-    let render_pipeline = self
-      .device
-      .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-          module: &shader,
-          entry_point: Some("vs_main"),
-          buffers: &[buffer_layout],
-          compilation_options: Default::default(),
-        },
-        fragment: Some(wgpu::FragmentState {
-          module: &shader,
-          entry_point: Some("fs_main"),
-          compilation_options: Default::default(),
-          targets: &[Some(ColorTargetState {
-            format: swapchain_format,
-            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-            write_mask: wgpu::ColorWrites::ALL,
-          })],
-        }),
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        multiview_mask: None,
-        cache: None,
-      });
-
-    self.texture_render_pipeline = Some(render_pipeline);
-    self.texture_render_pipeline_layout = Some(pipeline_layout);
-
-    self
-  }
-
-  pub fn create_shape_render_pipeline(&mut self) -> &mut Self {
-    let shader = self
-      .device
-      .create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: None,
-        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/square.wgsl").into()),
-      });
-
-    let pipeline_layout = self
-      .device
-      .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        bind_group_layouts: &[
-          Some(
-            &self
-              .uniform_manager
-              .get(UniformVariant::Projection)
-              .bind_group_layout,
-          ),
-          Some(&self.model_transforms.bind_group_layout),
-        ],
-        immediate_size: 0,
-      });
-
-    let swapchain_capabilities = self.surface.get_capabilities(&self.adapter);
-    let swapchain_format = swapchain_capabilities.formats[0];
-
-    let buffer_layout = Vertex::desc();
-
-    let render_pipeline = self
-      .device
-      .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-          module: &shader,
-          entry_point: Some("vs_main"),
-          buffers: &[buffer_layout],
-          compilation_options: Default::default(),
-        },
-        fragment: Some(wgpu::FragmentState {
-          module: &shader,
-          entry_point: Some("fs_main"),
-          compilation_options: Default::default(),
-          targets: &[Some(swapchain_format.into())],
-        }),
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        multiview_mask: None,
-        cache: None,
-      });
-
-    self.shape_render_pipeline = Some(render_pipeline);
-    self.shape_render_pipeline_layout = Some(pipeline_layout);
-
-    self
-  }
-
   pub fn upload_square(&self) {
     let square = unit_square();
     self
@@ -363,7 +224,7 @@ impl Renderer {
       .model_transforms
       .write_transforms(&self.queue, &world.entities);
 
-    let Some(texture_pipeline) = &self.texture_render_pipeline else {
+    let Some(texture_pipeline) = &self.pipelines[PipelineType::Texture as usize] else {
       return;
     };
 
@@ -414,10 +275,11 @@ impl Renderer {
         multiview_mask: None,
       });
 
-      if let (Some(grid_pipeline), Some(grid_buffer)) =
-        (&self.grid_render_pipeline, &self.grid_buffer)
-      {
-        rpass.set_pipeline(grid_pipeline);
+      if let (Some(grid_pipeline), Some(grid_buffer)) = (
+        &self.pipelines[PipelineType::Gridlines as usize],
+        &self.grid_buffer,
+      ) {
+        rpass.set_pipeline(&grid_pipeline.pipeline);
         rpass.set_bind_group(
           0,
           &self
@@ -431,7 +293,7 @@ impl Renderer {
       }
 
       //rpass.set_pipeline(pipeline);
-      rpass.set_pipeline(texture_pipeline);
+      rpass.set_pipeline(&texture_pipeline.pipeline);
       rpass.set_vertex_buffer(0, self.square_buffer.slice(..));
       rpass.set_bind_group(
         0,
@@ -442,8 +304,28 @@ impl Renderer {
         &[],
       );
       rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
-      rpass.set_bind_group(2, &self.texture.bind_group, &[]);
 
+      if let Some(player) = world.entities.iter().find(|e| e.is_player) {
+        let frame = (player.anim_tick / Entity::TICKS_PER_FRAME) % Entity::WALK_FRAMES;
+        match player.facing() {
+          Facing::S => {
+            if player.anim_tick == 0 {
+              rpass.set_bind_group(2, &self.direction_textures[0].bind_group, &[])
+            } else {
+              rpass.set_bind_group(2, &self.walking_animation_textures_s[frame].bind_group, &[])
+            }
+          }
+          Facing::SE => rpass.set_bind_group(2, &self.direction_textures[1].bind_group, &[]),
+          Facing::E => rpass.set_bind_group(2, &self.direction_textures[2].bind_group, &[]),
+          Facing::NE => rpass.set_bind_group(2, &self.direction_textures[3].bind_group, &[]),
+          Facing::N => rpass.set_bind_group(2, &self.direction_textures[4].bind_group, &[]),
+          Facing::NW => rpass.set_bind_group(2, &self.direction_textures[5].bind_group, &[]),
+          Facing::W => rpass.set_bind_group(2, &self.direction_textures[6].bind_group, &[]),
+          Facing::SW => rpass.set_bind_group(2, &self.direction_textures[7].bind_group, &[]),
+        }
+      } else {
+        rpass.set_bind_group(2, &self.texture.bind_group, &[]);
+      };
       rpass.draw(0..6, 0..self.model_transforms.count as u32)
     }
 

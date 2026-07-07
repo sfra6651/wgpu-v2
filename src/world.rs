@@ -19,6 +19,8 @@ impl World {
       pos: (width / 2.0, height / 2.0).into(),
       size: (1.0, 1.0).into(),
       velocity: (0.0, 0.0).into(),
+      dir: (0.0, -1.0).into(),
+      anim_tick: 0,
       is_player: true,
     });
 
@@ -32,6 +34,11 @@ impl World {
   pub fn update(&mut self) {
     for entity in self.entities.iter_mut() {
       entity.pos += entity.velocity;
+      if entity.velocity != Vec2::ZERO {
+        entity.anim_tick += 1;
+      } else {
+        entity.anim_tick = 0;
+      }
     }
     self.camera.pos += self.camera.velocity;
   }
