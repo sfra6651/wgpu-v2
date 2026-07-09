@@ -8,7 +8,12 @@ pub struct Texture {
 
 impl Texture {
   pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, path: &str, name: &str) -> Self {
-    let img = image::open(path).unwrap().to_rgba8();
+    let Ok(dyn_img) = image::open(path) else {
+      panic!("failed to load image at {}", path);
+    };
+
+    let img = dyn_img.to_rgba8();
+
     let (width, height) = img.dimensions();
     let rgba = img.into_raw();
 

@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Bible</title>
+<style>
+  :root {
+    --bg: #f6f2ea;
+    --text: #2b2620;
+    --muted: #7a7266;
+    --accent: #7c2d2d;
+    --rule: #d8d0c2;
+    --card: #fffdf8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1a17;
+      --text: #e4ddd1;
+      --muted: #9a9184;
+      --accent: #c96f5e;
+      --rule: #3a352e;
+      --card: #24211d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, 'Times New Roman', serif;
+    line-height: 1.7;
+    font-size: 17px;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    overflow-y: auto;
+    padding: 2rem 1.5rem 2rem 2rem;
+    border-right: 1px solid var(--rule);
+    background: var(--card);
+  }
+  .sidebar h2 {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-weight: normal;
+  }
+  .sidebar ol {
+    margin: 0;
+    padding-left: 1.4rem;
+  }
+  .sidebar li {
+    margin-bottom: 0.4rem;
+    font-size: 0.92rem;
+  }
+  .sidebar a {
+    color: var(--text);
+    text-decoration: none;
+    display: block;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+  }
+  .sidebar a:hover { color: var(--accent); }
+  .sidebar li.placeholder a { color: var(--muted); }
+  .sidebar a.active {
+    color: var(--accent);
+    font-weight: bold;
+  }
+  .sidebar ol.sub {
+    list-style: none;
+    padding-left: 1rem;
+    margin-top: 0.3rem;
+  }
+  .sidebar ol.sub li {
+    margin-bottom: 0.2rem;
+    font-size: 0.85rem;
+  }
+  .sidebar ol.sub a { color: var(--muted); }
+  .sidebar ol.sub a:hover { color: var(--accent); }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+    margin-left: calc(260px + max(1.5rem, (100vw - 260px - 760px) / 2));
+    margin-right: 1.5rem;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 3rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 2rem;
+  }
+  header h1 {
+    font-size: 2.4rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0 0 0.5rem;
+    font-weight: normal;
+  }
+  header p {
+    color: var(--muted);
+    font-style: italic;
+    margin: 0;
+  }
+  section {
+    margin-bottom: 4rem;
+    scroll-margin-top: 1.5rem;
+  }
+  section h2 {
+    font-size: 1.7rem;
+    font-weight: normal;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.5rem;
+    margin: 0 0 1.5rem;
+  }
+  section h2 .num {
+    color: var(--accent);
+    margin-right: 0.6rem;
+  }
+  section h3 {
+    font-size: 1.25rem;
+    font-weight: normal;
+    font-style: italic;
+    margin: 2rem 0 0.75rem;
+    color: var(--accent);
+    scroll-margin-top: 1.5rem;
+  }
+  section h4 {
+    font-size: 1.05rem;
+    margin: 1.5rem 0 0.5rem;
+  }
+  hr.sep {
+    border: none;
+    text-align: center;
+    margin: 2rem 0;
+  }
+  hr.sep::after {
+    content: "✦";
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  ul.themes, ol.themes { padding-left: 1.4rem; }
+  ul.themes li, ol.themes li { margin-bottom: 0.5rem; }
+  p.empty {
+    color: var(--muted);
+    font-style: italic;
+  }
+  blockquote.closing {
+    margin: 2rem 0 0;
+    padding-left: 1.25rem;
+    border-left: 3px solid var(--accent);
+    font-style: italic;
+    color: var(--muted);
+  }
+  @media (max-width: 900px) {
+    .sidebar {
+      position: static;
+      width: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--rule);
+      padding: 1.5rem;
+    }
+    .sidebar ol { columns: 2; column-gap: 2rem; }
+    .sidebar ol.sub { display: none; }
+    .sidebar li { break-inside: avoid; }
+    .wrap {
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    body { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar" id="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#world-vision">World Vision</a></li>
+    <li><a href="#visual-style">Visual Style</a></li>
+    <li><a href="#magic-born">The Three Magic-Born Human Types</a>
+      <ol class="sub">
+        <li><a href="#ascendants">Ascendants</a></li>
+        <li><a href="#conduits">Conduits</a></li>
+        <li><a href="#mages">Mages</a></li>
+      </ol>
+    </li>
+    <li><a href="#world-structure-geography">World Structure &amp; Geography</a></li>
+    <li><a href="#main-kingdom">The Main Kingdom</a>
+      <ol class="sub">
+        <li><a href="#imperial-capital">The Imperial Capital</a></li>
+        <li><a href="#mage-tower">The Mage Tower</a></li>
+        <li><a href="#eastern-bastion">The Eastern Bastion City</a></li>
+        <li><a href="#northern-city">The Northern Coastal City</a></li>
+        <li><a href="#southern-cities">The Southern Cities</a></li>
+      </ol>
+    </li>
+    <li><a href="#power-structure">Kingdom Power Structure</a>
+      <ol class="sub">
+        <li><a href="#magical-inheritance">Magical Inheritance</a></li>
+        <li><a href="#ascendant-consolidation">The Ascendant Nobility</a></li>
+        <li><a href="#the-crown">The Crown</a></li>
+        <li><a href="#mage-order">The Mage Order</a></li>
+        <li><a href="#conduits-state">Conduits</a></li>
+        <li><a href="#imperial-guard">The Imperial Guard</a></li>
+        <li><a href="#guard-commander">The Commander of the Guard</a></li>
+        <li><a href="#noble-houses">Noble Houses</a></li>
+        <li><a href="#noble-armies">Noble Armies</a></li>
+        <li><a href="#ascendants-outside">Ascendants Outside the Nobility</a></li>
+        <li><a href="#cities-regents">Cities and Regents</a></li>
+        <li><a href="#autonomy-stagnation">Autonomy and Stagnation</a></li>
+        <li><a href="#eastern-frontier">The Eastern Frontier</a></li>
+        <li><a href="#law-impunity">Law and Noble Impunity</a></li>
+        <li><a href="#guilds-economy">Guilds and Economy</a></li>
+        <li><a href="#fragile-balance">The Fragile Balance</a></li>
+      </ol>
+    </li>
+    <li><a href="#magic-metaphysics">Magic and Metaphysics</a>
+      <ol class="sub">
+        <li><a href="#hidden-realm">The Hidden Realm</a></li>
+        <li><a href="#ancient-prophecy">The Ancient Prophecy</a></li>
+        <li><a href="#three-gifts">The Three Human Gifts</a></li>
+        <li><a href="#magic-ascendants">Ascendants</a></li>
+        <li><a href="#magic-mages">Mages</a></li>
+        <li><a href="#elemental-hearts">Elemental Hearts</a></li>
+        <li><a href="#magic-conduits">Conduits</a></li>
+        <li><a href="#noble-conduits">Noble Conduits</a></li>
+        <li><a href="#magical-armaments">Magical Armaments</a></li>
+        <li><a href="#rune-crafting">Rune-Crafting</a></li>
+        <li><a href="#ancient-vs-modern">Ancient Magic and Modern Control</a></li>
+      </ol>
+    </li>
+  </ol>
+</nav>
+
+<div class="wrap">
+
+<header>
+  <h1>World Bible</h1>
+  <p>A dark fantasy setting of old kingdoms, forgotten peoples, and fading magic</p>
+</header>
+
+<section id="world-vision">
+  <h2><span class="num">1.</span>World Vision</h2>
+
+  <p>The world is ancient, layered, and full of buried secrets. It is loosely shaped by the geography and cultural memory of the real world, but transformed into a dark fantasy setting of old kingdoms, lost magic, forgotten peoples, and decaying institutions.</p>
+  <p>The central focus is a powerful human kingdom inspired by old European empires. At its heart is a grand capital: wealthy, cultured, political, religious, and deeply corrupt. This central kingdom believes itself to be the height of civilization, but it is insulated from the older truths of the world. Beyond its fortified cities and noble estates, the outer provinces become poorer, stranger, more superstitious, and more exposed to ancient powers.</p>
+
+  <hr class="sep">
+
+  <h3>A World Built in Layers</h3>
+  <p>The world is built in layers. Every civilization has risen upon the ruins of another. The current human kingdom occupies lands once ruled by forgotten empires, whose own foundations rest upon even older civilizations. Ancient roads disappear into forests older than recorded history. Mountain fortresses predate the kingdoms that now claim them. Beneath every castle, city, and ruin lies another story waiting to be uncovered. The deeper one travels into the wilderness&mdash;or beneath the earth&mdash;the further back through history they journey.</p>
+
+  <hr class="sep">
+
+  <h3>The Return of Magic</h3>
+  <p>For centuries, the old magic of the world has been fading. Ancient kingdoms collapsed, magical bloodlines weakened, and the great supernatural forces became distant. The world became quieter, more stable, and increasingly governed by politics rather than magic. But now something is changing. <strong>The deep magic is returning.</strong> Forgotten powers are stirring beneath ruins, strange phenomena are becoming more common, and the ancient currents of magic are beginning to flow once more.</p>
+
+  <hr class="sep">
+
+  <h3>A New Age</h3>
+  <p>From the center, the kingdom appears stable, prosperous, and civilized. In reality, its order rests upon inherited privilege, political intrigue, magical exploitation, and carefully maintained control. As the world's ancient magic awakens once more, the foundations upon which the kingdom has stood for centuries begin to fracture.</p>
+  <p>This is not a world on the brink of apocalypse. It is a world entering a new age. The old balance is shifting, forgotten histories are resurfacing, and powers long thought lost are returning.</p>
+
+  <blockquote class="closing">The greatest dangers are not new&mdash;they are ancient, and the world has simply begun to remember them.</blockquote>
+</section>
+
+<section id="visual-style">
+  <h2><span class="num">2.</span>Visual Style</h2>
+
+  <p>The game uses a <strong>modern pixel-art fantasy style</strong> built on <strong>stylized realism</strong>, clean graphic design, and strong readability.</p>
+  <p>Pixel art is the medium, not the theme. The game should not feel retro, nostalgic, muddy, or overly limited by old hardware aesthetics. Instead, it should feel like a contemporary fantasy action RPG expressed through crisp, carefully designed pixel art.</p>
+  <p>The world is <strong>vibrant, ancient, and alive</strong>. It is not a bleak or desaturated setting. Forests are lush, rivers are bright, cities are warm, markets are colourful, and nature has a strong presence. Bleakness exists, but it is powerful because it contrasts against the natural beauty and vitality of the world. Corruption, decay, poverty, and horror should feel like wounds in an otherwise living world.</p>
+  <p>The visual language should sit between historical realism and fantasy. Designs should feel grounded and believable, but not mundane. Armour, clothing, architecture, weapons, and props should have practical forms, clear silhouettes, and a sense of cultural history. Fantasy elements should enhance the world rather than overwhelm it.</p>
+  <p>The overall look should be <strong>clean, sharp, and intentional</strong>. Detail is used selectively. Forms should be readable at gameplay scale, especially in characters, enemies, weapons, spell effects, and environmental hazards. Avoid excessive texture, random noise, cluttered costumes, over-rendered armour, or unnecessary ornamentation.</p>
+  <p>Characters should use <strong>stylized realistic proportions</strong>. They are not cartoonish, chibi, or exaggerated in a retro arcade way, but they are simplified enough to work clearly in a top-down action RPG. Silhouettes, posture, and costume shapes should communicate identity quickly.</p>
+  <p>Colour is an important part of the style. The world should use rich natural colour rather than constant greys and browns. Civilization can use warm stone, painted banners, coloured cloth, polished wood, bronze, tile, gardens, and sunlight. Magic and corruption should stand out through stronger, more unnatural colour choices.</p>
+  <p>The style should feel serious without becoming grim or lifeless. It should support mystery, danger, corruption, class tension, ancient history, and returning magic, while still allowing beauty, warmth, culture, and life to exist in the world.</p>
+  <p>A useful guiding phrase for the visual style is:</p>
+
+  <blockquote class="closing">A vibrant ancient fantasy world rendered with clean, modern pixel art, where beauty is the baseline and darkness is meaningful because it interrupts that beauty.</blockquote>
+</section>
+
+<section id="magic-born">
+  <h2><span class="num">3.</span>The Three Magic-Born Human Types</h2>
+
+  <p>At birth, a rare few humans inherit access to the fundamental magic of the world. This gift shapes the entire social order of the kingdom.</p>
+
+  <hr class="sep">
+
+  <h3 id="ascendants">The Ascendants</h3>
+  <p>The Ascendants are not a profession, a military order, or a noble title. They are a rare strain of humanity born with the innate ability to consume and refine the world's magic within their own bodies. Their connection to this fundamental force grants them extraordinary physical advantages that no amount of training can replicate.</p>
+  <p>An Ascendant is naturally stronger, faster, more resilient, heals more rapidly, and ages more slowly than an ordinary human. These traits exist regardless of lifestyle. An Ascendant who trains relentlessly may develop an enormous, imposing physique, while another who spends decades indulging in luxury may become overweight or slight in build. Their appearance reflects their habits, but their innate superiority remains. A soft, ageing noble who has not held a sword in years may still be capable of feats of strength that no ordinary soldier could hope to match.</p>
+  <p>Over countless generations, these biological advantages allowed Ascendants to become the dominant social class. They accumulated wealth, political influence, military authority, and land until their natural superiority became inseparable from hereditary power. The kingdom's nobility is therefore not merely an aristocracy of wealth, but an aristocracy of birth.</p>
+  <p>This creates a society built upon an uncomfortable truth. The Ascendants are genuinely physically superior to ordinary humans. Their dominance is not founded on myth or propaganda, but on an inherited magical gift. However, physical superiority does not imply moral superiority. They are no wiser, kinder, or more deserving than anyone else.</p>
+  <p>Like any society, the Ascendants are immensely diverse. Some become disciplined generals, accomplished scholars, visionary rulers, or dedicated public servants. Others become corrupt politicians, complacent bureaucrats, decadent aristocrats, ambitious merchants, gifted artists, or petty criminals. Their magical inheritance shapes what they are capable of physically, but not who they become.</p>
+  <p>Centuries of unquestioned dominance have inevitably shaped their culture. Most Ascendants are raised from birth believing they are destined to lead. Many possess a quiet confidence born from a lifetime of effortless superiority. Others become arrogant, entitled, or complacent, having never experienced genuine physical vulnerability. To many commoners, this attitude embodies everything that is wrong with the kingdom. To many Ascendants, it is simply the natural order of the world.</p>
+  <p>The kingdom's greatest strength and greatest weakness both stem from the Ascendants. Their extraordinary abilities allowed civilization to flourish during centuries of declining magic, but the same inherited privilege has created a rigid and increasingly corrupt social order. As the ancient powers of the world begin to awaken once more, the foundations of that order are starting to crack.</p>
+
+  <hr class="sep">
+
+  <h3 id="conduits">The Conduits</h3>
+  <p>Others are born as Conduits, capable of drawing immense quantities of raw magical energy from beyond the physical world and bringing it into reality. While they can channel extraordinary power, they cannot truly control it. Their value lies in the energy they provide rather than their mastery of it. The state claims ownership of every Conduit it discovers, using them as strategic military assets, ritual power sources, and instruments of political control. Their bondage is one of the principal ways the crown maintains authority over the noble houses.</p>
+
+  <hr class="sep">
+
+  <h3 id="mages">The Mages</h3>
+  <p>Rarest of all are Mages. They cannot generate or consume magical energy themselves, but they possess the unique ability to perceive and manipulate the currents of magic wherever they exist. They alone can truly understand the hidden flow of power through the world. Children born with this gift are removed from their families at a young age and raised within a state-sanctioned magical order. There they renounce their former lives, dedicating themselves to scholarship, discipline, and service to the realm. They are neither slaves nor nobles, but a separate institution whose knowledge makes them indispensable to the kingdom.</p>
+</section>
+
+<section id="world-structure-geography">
+  <h2><span class="num">4.</span>World Structure and Geography</h2>
+
+  <p>The world is loosely based on the geography of the real world, but transformed into a dark fantasy setting of ancient ruins, altered climates, lost civilizations, hidden peoples, and supernatural frontiers. The layout should feel familiar enough to give the player an instinctive sense of scale, but strange enough that it remains its own world.</p>
+  <p>The main focus of the setting is the great human kingdom occupying the broad equivalent of Europe. This kingdom is the political, cultural, and military heart of the known world, at least from its own perspective. Its people believe they live at the centre of civilization. In truth, the kingdom is only one surviving fragment of a much older human civilization whose full history has been lost.</p>
+
+  <hr class="sep">
+
+  <h3>The Main Kingdom</h3>
+  <p>The main kingdom occupies a large temperate region bordered by the western ocean, a southern sea, colder northern territories, and the great mountain spine to the east. It is powerful, old, cultured, class-bound, and deeply political.</p>
+  <p>Unlike a fully centralized inland empire, the kingdom's population is concentrated mostly along the western coast. Its greatest cities, ports, trade houses, noble estates, naval institutions, markets, and political centres developed around coastal access and maritime wealth. Inland regions exist, but they are generally less densely populated, less controlled, and more exposed to older wilderness, ruins, forests, and regional powers.</p>
+  <p>The imperial capital sits on the western coast, slightly south of the continent's middle. It occupies a fertile temperate region and acts as the seat of state power, noble influence, mage authority, religious tradition, trade, law, and corruption. From here, the kingdom appears ordered, prosperous, and unified.</p>
+  <p>The farther one travels from the capital and the major coastal population centres, the more that illusion begins to fray. Roads become less maintained, noble houses become more independent, old ruins become less repurposed and more mysterious, superstition increases, and the returning tides of magic become harder to ignore.</p>
+
+  <hr class="sep">
+
+  <h3>Regional Character of the Kingdom</h3>
+  <p>The kingdom is not culturally uniform. Its regions reflect climate, geography, old bloodlines, local histories, and distance from the capital.</p>
+  <p>The central-western heartlands are temperate, wealthy, cultivated, and heavily controlled. These lands contain the capital, major ports, grand noble estates, large towns, old universities, military centres, temples, and mage institutions. Here the kingdom presents its most polished face.</p>
+  <p>The southern provinces are hotter, drier, and more politically fragmented. The south has pockets of dense population, especially along the coast and across the sea from the free cities. These regions are shaped by trade, naval rivalry, old coastal cities, fortified villas, vineyards, dry hills, mercenary traditions, and long memories of conflict across the southern sea.</p>
+  <p>The far southwest is wild and mountainous. It is less settled than the southern coast and more difficult for the capital to control. This region is home to hard border communities, isolated keeps, old passes, hidden valleys, smugglers, mountain clans, forgotten ruins, and noble houses that are loyal in name but fiercely independent in practice.</p>
+  <p>The northern provinces are colder, harsher, and more martial. Life there is shaped by long winters, fortified settlements, ancient forests, border keeps, old clans, and hard survival. Northern nobles are less polished than those of the capital, but often more respected by soldiers and common folk. The north is loyal in theory, but distant in spirit.</p>
+  <p>The eastern interior becomes less densely populated as it approaches the great mountain spine and the ancient forest. Human authority thins here. Towns become smaller, roads become older, and the land feels less fully claimed by the kingdom.</p>
+
+  <hr class="sep">
+
+  <h3>The Eastern Mountain Spine</h3>
+  <p>To the east of the kingdom rises a vast mountain range known in working terms as the Spine of the World. It forms a massive natural boundary between the main kingdom and the lands beyond.</p>
+  <p>The mountains are home to scattered dwarven holds, ancient tunnels, lost roads, deep mines, and forgotten fortresses. The dwarves trade with the human kingdom but remain secretive and politically distant. They are older than the current human order and know more about the buried history of the world than they admit.</p>
+  <p>The dwarven realms are under increasing pressure from goblins and orcs spreading through the mountains, tunnels, and abandoned lower holds. Many human nobles view this as a distant problem, but the dwarves understand it as part of a much larger shift.</p>
+  <p>Between the human kingdom and the eastern mountains lies a vast magical forest. This forest is ancient, dangerous, and difficult to cross. Forest elves dwell within it and permit few outsiders to enter. Only a handful of old paths pass through the trees, and even those are unreliable. The forest is one of the places where the old magic of the world has never fully faded.</p>
+  <p>Beyond the mountains lie deserts, vast wilderness, and eventually the great eastern civilizations. These regions exist in the world but are not yet the focus of the game.</p>
+
+  <hr class="sep">
+
+  <h3>The Southern Sea and the Dead Continent</h3>
+  <p>South of the main kingdom lies a great sea. Beyond it is a vast southern continent, widely believed by the people of the kingdom to be mostly dead, desolate, and hostile.</p>
+  <p>This belief is only partly true.</p>
+  <p>The northern third of the southern continent contains deserts, harsh coastlines, lawless ports, old trade routes, and a loose collection of free cities, pirate enclaves, dictatorships, mercenary states, and unstable local powers. The people of this region are culturally diverse and generally darker-skinned than those of the main kingdom. They are often dismissed by the kingdom as uncivilized or dangerous, though this view says more about imperial arrogance than reality.</p>
+  <p>The southern coast of the main kingdom faces these free cities across the sea. This makes the south more cosmopolitan, dangerous, and politically complicated than the central court often admits. Trade, piracy, smuggling, mercenary work, diplomacy, war, and cultural exchange all pass through this region.</p>
+  <p>The deeper truth of the southern continent is far more important. In the ancient past, it was the heartland of a vast human civilization that existed before the current age. That civilization was destroyed or transformed during the last great cataclysm. The main kingdom is actually a splintered remnant of this lost civilization, though this history is unknown to the general population.</p>
+  <p>Only select members of the highest mage orders know fragments of the truth. Even they do not possess the full picture.</p>
+  <p>Far to the deep south of the continent, in lands most humans believe to be lifeless wasteland, there exists a massive kingdom of monsters. Orcs and goblins rule there in numbers and organization far beyond what the human kingdom understands. This is not merely a scattering of tribes, but a true power with cities, hierarchy, culture, warlords, and its own ancient relationship to the returning magic of the world.</p>
+
+  <hr class="sep">
+
+  <h3>The Western Ocean</h3>
+  <p>To the west of the main kingdom lies a vast and terrifying ocean. It is considered uncrossable by most human civilizations. The western ocean is filled with enormous magical storms, monstrous sea creatures, strange currents, and supernatural phenomena that make long-distance travel nearly impossible.</p>
+  <p>The kingdom's western coast is therefore both its greatest source of wealth and one of its greatest boundaries. Trade flourishes along the coast and nearby seas, but true westward expansion is impossible. The ocean is not an open frontier; it is a wall of water, monsters, storm, and myth.</p>
+  <p>Somewhere within this ocean lies a hidden colony of elves. Its existence is known only through myth, half-truths, lost sailor accounts, and fragments of old records. These elves are not yet fully defined, but their isolation should feel deliberate and ancient.</p>
+  <p>Beyond the ocean lies a distant western continent, roughly equivalent to the Americas. The main kingdom does not know this continent exists in any accurate sense. Its scholars and navigators may have myths of far northern lands, but they do not understand the true geography of the world.</p>
+
+  <hr class="sep">
+
+  <h3>The Western Continent</h3>
+  <p>The western continent is strange and climatically unusual. Its northern half is far colder than expected, with ice and frozen lands reaching much farther south than they should. This has shaped the cultures that live there.</p>
+  <p>The peoples of the northern western continent are culturally distinct from the main kingdom. They are not evil or primitive, but different: harsher, more mobile, more clan-based, and more adapted to extreme conditions. Their culture may draw loose inspiration from steppe nomads, seafaring raiders, and northern warrior societies, but should become something unique to this world.</p>
+  <p>The western continent is connected to the lands of the main kingdom only through the far north. This polar region is effectively uncrossable, filled with monsters, impossible weather, lethal cold, and forces hostile to life. Because of this, the main kingdom believes any lands beyond the western sea are actually part of the mythical far north rather than a separate continent.</p>
+  <p>The western continent is also home to a larger colony of dark elves. These elves are slavers and often act as antagonists, but they should not be treated as purely evil by nature. Like all cultures in this world, they are shaped by history, environment, power, and survival. Individuals within them can be cruel, loyal, conflicted, honourable, selfish, merciful, or monstrous. The world is morally grey; people are products of their circumstances as much as their choices.</p>
+
+  <hr class="sep">
+
+  <h3>Orcs and Goblins</h3>
+  <p>Orcs and goblins exist across many parts of the world. They are present in forests, caves, mountains, ruins, borderlands, and abandoned places. In the main kingdom, they are often treated as pests, raiders, or monsters, but this is an incomplete understanding.</p>
+  <p>Their greatest concentration lies far to the south, where a vast monster kingdom exists beyond the knowledge of most humans. This kingdom may become one of the major revelations of the setting: proof that the so-called monsters are not merely scattered threats, but possess history, organization, and power of their own.</p>
+
+  <hr class="sep">
+
+  <h3>Ruins and Ancient Structures</h3>
+  <p>Old ruins exist everywhere.</p>
+  <p>In the main kingdom, many cities, castles, temples, and roads are built directly on top of ancient structures. This is especially true along the western coast and in the capital, where the current kingdom has absorbed and repurposed older foundations for centuries. Some ruins have been domesticated so completely that ordinary people no longer recognize them as remnants of another civilization.</p>
+  <p>A government hall may stand on the foundation of a pre-cataclysmic temple. A noble estate may incorporate walls older than human memory. A city sewer may actually be part of an ancient transit system or ritual complex.</p>
+  <p>In the outer provinces, borderlands, mountains, forests, and southern continent, ruins are less controlled and more dangerous. Some remain untouched. Some are occupied by monsters, cults, bandits, elves, dwarves, or unknown things. Some are waking as magic returns.</p>
+  <p>The condition of a ruin depends heavily on who currently occupies the land around it. In civilized regions, ancient structures are often absorbed, renamed, and domesticated. In wild regions, they remain closer to their original mystery.</p>
+
+  <hr class="sep">
+
+  <h3>The Undead</h3>
+  <p>The undead are a natural phenomenon in this world, though rare. They are not simply the result of evil necromancers or curses, although such things may exist. Sometimes the dead rise because something in the world has shifted.</p>
+  <p>Undead are becoming more common as the old magic returns.</p>
+  <p>They do not rise randomly. They always have a purpose, though that purpose is often unknown, forgotten, or impossible for the living to understand. Some may guard places. Some may repeat old duties. Some may seek justice, revenge, release, or completion. Others may be moved by forces far older than any living kingdom.</p>
+
+  <blockquote class="closing">The rise of the undead is one of the clearest signs that the world is changing.</blockquote>
+</section>
+
+<section id="main-kingdom">
+  <h2><span class="num">5.</span>The Main Kingdom</h2>
+
+  <p>The main kingdom is a powerful coastal realm whose authority is strongest in the west and weakest as one travels east into the wild interior. It presents itself as a unified empire of law, culture, noble order, mage authority, and controlled magic, but in practice it is held together by a chain of major cities, fortified roads, noble territories, military outposts, trade routes, and regional powers.</p>
+  <p>The kingdom's population is concentrated mostly along the western coast, where trade, political power, state institutions, noble wealth, and old urban centres are strongest. Inland regions become less settled and less controlled. The farther east one travels, the more the kingdom becomes a claim on a map rather than a lived reality.</p>
+  <p>The kingdom has four major internal power centres:</p>
+  <ol class="themes">
+    <li><strong>The Imperial Capital</strong> &mdash; the seat of political power, court life, mage authority, imperial corruption, and official state identity.</li>
+    <li><strong>The Eastern Bastion City</strong> &mdash; the hard inland frontier city that shields the capital and western kingdom from the wild east.</li>
+    <li><strong>The Northern Coastal City</strong> &mdash; a cold northern stronghold that anchors the kingdom's northern coast and watches the harsher lands beyond.</li>
+    <li><strong>The Southern Cities</strong> &mdash; a wealthy, hot, politically independent southern region centred around one dominant city, shaped by maritime trade, noble rivalry, mercenary culture, and contact with the free cities across the southern sea.</li>
+  </ol>
+  <p>Together, these four regions define the kingdom's internal character. The capital believes itself to be the centre of civilization. The eastern city knows how fragile that civilization really is. The northern city endures at the edge of cold and distance. The southern cities are proud, wealthy, culturally distinct, and difficult for the capital to fully control.</p>
+
+  <hr class="sep">
+
+  <h3 id="imperial-capital">The Imperial Capital</h3>
+  <p>The Imperial Capital sits on the western coast, slightly south of the continent's middle. It is built where river, sea, old roads, and ancient foundations meet. The river runs through the capital region and divides several of its most important power structures.</p>
+  <p>The capital is sprawling, layered, beautiful, corrupt, and deeply unequal. It is not a single unified city, but a collection of districts that have grown around older monuments, state institutions, noble power, trade, and class separation.</p>
+  <p>At the heart of the capital stands the ancient Imperial Palace. It is not a true product of the current kingdom. It is a majestic remnant from an earlier age, possibly built by the lost human civilization before the last cataclysm, or perhaps by elves or another forgotten people. Its architecture is unlike anything else in the kingdom. It radiates elegance, age, and authority. The current rulers occupy it, repair it, interpret it, and claim it, but they did not truly create it.</p>
+  <p>The palace sits inland from the coast and forms the symbolic centre of imperial power. Around it lies the Stone District, where the greatest noble houses, Ascendant families, high officials, military leaders, senior clergy, and state institutions reside. This district is enclosed by walls connected to the palace complex. Its streets are wide, paved, orderly, and beautiful. It is the kingdom as it wishes to be seen: lawful, ancient, cultivated, noble, and inevitable.</p>
+  <p>Attached to the palace complex, but distinct from the noble district, is the Crafters' District. This is one of the most controlled areas in the kingdom. It contains state engineers, master artisans, foundries, military workshops, ritual infrastructure, experimental works, and the living quarters of the Conduits. Its walls are higher and more severe than those around the noble district. Its guards face inward as much as outward. It is both a place of industry and a prison-like mechanism of state control.</p>
+  <p>Sprawling westward from the palace and Stone District toward the port is the Wooden City. This is the true living mass of the capital: chaotic, colourful, crowded, commercial, and alive. It contains poor districts, merchant quarters, guild streets, lesser noble enclaves, criminal neighbourhoods, inns, shrines, markets, warehouses, immigrant communities, and countless local powers. Some families have managed to build upward into stone and respectability, while others live in dense timber streets, leaning houses, alleys, and stacked additions.</p>
+  <p>A great guarded road connects the palace district to the western port. This road is one of the most important arteries in the kingdom. It allows goods, soldiers, prisoners, taxes, state resources, and official processions to move between the palace and the sea. It cuts through the Wooden City like a controlled channel of royal authority and is lined with checkpoints, guard posts, customs houses, military stations, and state warehouses.</p>
+  <p>The port sits at the western edge of the capital. It is one of the kingdom's greatest sources of wealth and one of the main reasons the capital became so powerful. The port connects the kingdom to coastal trade, southern sea routes, fishing fleets, naval power, mercenary traffic, foreign goods, smuggling, sailors, refugees, and rumours from across the sea.</p>
+  <p>The western ocean beyond remains largely uncrossable, but the coastal waters and southern sea make the port essential. Whoever controls the port controls the flow of wealth into the capital.</p>
+
+  <hr class="sep">
+
+  <h3 id="mage-tower">The Mage Tower and the Northern Bank</h3>
+  <p>The Mage Tower is separate from the Imperial Palace. It stands on the far side of the river, to the north, and is connected to the palace side by an ancient bridge.</p>
+  <p>Like the palace, the Mage Tower was not built by the current kingdom. It appears to have been created by the same lost builders, or at least by a civilization with the same architectural knowledge. Its structure is elegant, impossible, and deeply old. It is one of the great wonders of the capital.</p>
+  <p>The bridge that spans the river is also ancient. It is not merely a crossing, but a monumental piece of lost engineering. Its scale, materials, and design make it clear that it belongs to the same forgotten age as the palace and tower. Control of this bridge is politically, symbolically, and strategically vital.</p>
+  <p>The bridge is tightly guarded, much like the great road to the port. Passage across it is controlled, watched, and restricted. It physically connects the imperial state to the mage order, but it also marks the separation between them.</p>
+  <p>Around the entrance to the bridge, on the northern bank, a smaller city has grown in service to the Mage Tower. This mini-city contains scribes, copyists, suppliers, lesser scholars, servants, guards, sanctioned craftsmen, bookbinders, physicians, ritual suppliers, minor officials, inns, hostels, and families whose lives depend on the tower's presence.</p>
+  <p>However, there is a strict gap between this surrounding settlement and the tower itself. The Mage Tower does not blend naturally into the city around it. It stands apart, protected by empty space, walls, ritual boundaries, guards, and custom. The message is clear: the mage order may serve the kingdom, but it is not simply another branch of the palace.</p>
+
+  <hr class="sep">
+
+  <h3 id="eastern-bastion">The Eastern Bastion City</h3>
+  <p>Far inland to the east lies the Eastern Bastion City. This is one of the most important cities in the kingdom, though it lacks the glamour and political softness of the capital.</p>
+  <p>The Eastern Bastion City exists as a barrier between the civilized west and the vast wild interior. It protects the capital, the western heartlands, and the coastal population centres from the dangers of the east: monsters, ruins, bandits, old forests, goblin movements, orc incursions, unstable magic, and whatever is beginning to wake in the forgotten places.</p>
+  <p><strong>This is where the action happens.</strong></p>
+  <p>The city has a large and active garrison that sees constant use. Its soldiers are not ceremonial. Its walls are not symbolic. Its noble houses are not merely courtly families playing at politics. They live closer to danger and understand the state of the world far better than the nobles of the capital.</p>
+  <p>People in the Eastern Bastion City are harder, more practical, and less insulated. Commoners and nobles alike have seen more of the world as it truly is. They know the kingdom's control is incomplete. They know the maps lie. They know the eastern wilds are not empty. They know old ruins are waking, monsters are moving, and the return of magic is not a courtly theory but a daily pressure.</p>
+  <p>Because of this, the Ascendant nobles of the eastern city are often more respected than those of the capital. They may still be privileged, arrogant, and politically self-interested, but many of them perform a real function. They lead patrols, command garrisons, hold dangerous roads, negotiate with frontier powers, and defend settlements that would otherwise fall.</p>
+  <p>This creates a different social atmosphere from the capital. In the Imperial Capital, noble privilege often feels decadent and parasitic. In the Eastern Bastion City, it is easier for commoners to believe that the nobles have earned at least some of their authority, even if the system remains fundamentally unequal.</p>
+  <p>The Eastern Bastion City should feel like the kingdom with its mask partially removed. It is still imperial, class-bound, and politically corrupt, but it is also more honest, more martial, more exhausted, and more aware.</p>
+
+  <hr class="sep">
+
+  <h3 id="northern-city">The Northern Coastal City</h3>
+  <p>The Northern Coastal City sits far to the north, but it remains part of the coastal structure of the kingdom rather than being deep inland.</p>
+  <p>It anchors the kingdom's northern reach and acts as a cold northern stronghold. The climate, distance, and harsher seasons make life there slower and more constrained. Trade, politics, war, and travel all move differently in the north. Winter changes everything.</p>
+  <p>The northern city guards against threats from the colder territories and the true north beyond, but the pressure there is different from the east. The cold itself slows movement. Armies, monsters, caravans, ships, and messages are all shaped by weather and season. Danger is still real, but it advances with a different rhythm.</p>
+  <p>Its people are hardy, reserved, and distant from the capital's courtly culture. They are loyal in principle, but they think of themselves as northerners first. Their nobles are less polished than those of the capital and less constantly active than those of the eastern frontier, but they are respected for endurance, tradition, and survival.</p>
+  <p>The Northern Coastal City represents the kingdom's cold edge: isolated, watchful, stubborn, and shaped by long winters.</p>
+
+  <hr class="sep">
+
+  <h3 id="southern-cities">The Southern Cities</h3>
+  <p>The Southern Cities are a major component of the kingdom, not foreign settlements and not to be confused with the free cities across the southern sea.</p>
+  <p>They lie south of the capital in a hotter, drier, more sun-baked region of coast, hills, fortified estates, old ports, vineyards, dry farmland, and ancient ruins. The south is still part of the kingdom, but it does not fully think like the capital. Its noble houses are older in attitude, fiercely proud, and more independent in practice than the court would prefer.</p>
+  <p>The region contains several important cities, but one city stands above the others as the dominant southern power. This main southern city is the political, commercial, and cultural heart of the south. It is large, wealthy, beautiful, dangerous, and politically sophisticated. It acts as the region's unofficial capital, even if the imperial court refuses to acknowledge it as such.</p>
+  <p>The Southern Cities are shaped by their position across the sea from the free cities. Trade, piracy, smuggling, diplomacy, mercenary contracts, foreign fashions, strange religions, and old rivalries all flow through the region. Southern nobles are often more cosmopolitan than northern or eastern nobles, but also more factional, more proud, and more willing to act independently.</p>
+  <p>The capital depends on the south for wealth, trade, ships, soldiers, luxury goods, and access to the southern sea. The south depends on the capital for legitimacy, imperial protection, and access to the wider kingdom. This creates constant tension: the Southern Cities are loyal enough to remain inside the kingdom, but powerful enough to resist being treated as mere provinces.</p>
+  <p>The geography reinforces this separation. The harsh southwestern mountains and their foothills create a difficult wild zone between the capital region and the southern cities. Travel is possible, but not simple. Major routes often bend eastward around the mountain barrier, passing through controlled roads, old passes, fortified towns, and dangerous borderlands. This natural separation allows the southern nobles to maintain a stronger regional identity.</p>
+  <p>The Southern Cities should feel vibrant rather than bleak: white stone, warm light, coloured awnings, coastal fortresses, dry gardens, markets, tiled roofs, sunlit courtyards, sword schools, mercenary banners, noble villas, old harbours, and ancient foundations repurposed into living cities. Their corruption is not hidden behind cold stone and imperial ceremony like the capital's; it is personal, factional, familial, and often conducted in public under the sun.</p>
+</section>
+
+<section id="power-structure">
+  <h2><span class="num">6.</span>Kingdom Power Structure</h2>
+
+  <p>The kingdom presents itself as an ordered realm ruled by ancient law, noble duty, mage wisdom, and imperial authority. In reality, its power structure is fragile, exploitative, and deeply dependent on secrets.</p>
+  <p>The crown does not rule through a strong centralized army or universal rule of law. It rules through controlled access to magic, manipulation of noble houses, ownership of Conduits, the authority of the Mage Order, and the terrifying presence of the Imperial Guard.</p>
+  <p>The kingdom is stable because no single faction can safely overthrow the others. It is unstable because every part of that balance is beginning to fail.</p>
+
+  <hr class="sep">
+
+  <h3 id="magical-inheritance">Magical Inheritance</h3>
+  <p>Every child born in the world has a tiny random chance to inherit one of the three known magical gifts: Ascendant, Conduit, or Mage.</p>
+  <p>For most of the population, this chance is extremely rare and unpredictable. A farmer's child, a merchant's child, a noble's child, or a beggar's child may be born with power. No bloodline is completely immune from chance, and no family can naturally guarantee what kind of gifted child will be born.</p>
+  <p>However, there is one exception.</p>
+  <p>If the mother possesses one of the three magical gifts, she may give up her own power to guarantee that her firstborn child is born with one of the three gifts. The specific gift remains random: an Ascendant mother may produce a Mage, a Mage may produce a Conduit, and a Conduit may produce an Ascendant. What is inherited is not the type of power, but the relative strength of the mother's gift.</p>
+  <p>This is the hidden mechanism that allowed the ruling class to consolidate power.</p>
+  <p>The common people of the kingdom do not understand this process. Most believe magical inheritance is mysterious, hereditary, divine, or tied vaguely to noble blood. The truth is far darker. The nobility's apparent hereditary power is maintained through the systematic acquisition and exploitation of magically gifted women.</p>
+  <p>In theory, the transfer of power is a choice made by the mother. In practice, the choice is almost always shaped by pressure, expectation, coercion, fear, poverty, duty, or direct force.</p>
+  <p>The Mage Order possesses secret rituals capable of forcing the transfer. This knowledge is one of the kingdom's most closely guarded secrets.</p>
+
+  <hr class="sep">
+
+  <h3 id="ascendant-consolidation">The Consolidation of the Ascendant Nobility</h3>
+  <p>The Ascendants became the ruling class not simply because they were born stronger, faster, and longer-lived than ordinary humans, but because noble families discovered how to preserve magical inheritance across generations.</p>
+  <p>Noble houses seek out magically gifted women across their territories. Some are purchased from desperate families. Some are absorbed through marriage arrangements. Some are taken through debt, legal manipulation, threat, or outright abduction. The method depends on the house, the region, the value of the woman's gift, and how much scrutiny the noble believes they will face.</p>
+  <p>This practice is one of the most brutal foundations of the kingdom.</p>
+  <p>It is also one of the most hidden.</p>
+  <p>The noble houses present their bloodlines as naturally blessed, ancient, and superior. In reality, their stability depends on a controlled and predatory system of inheritance. The cruelty is not incidental to the kingdom's hierarchy; it is one of the mechanisms that makes the hierarchy possible.</p>
+  <p>This creates an important contrast between the main kingdom and the free cities across the southern sea. The free cities may be lawless, violent, corrupt, and unstable in their own ways, but many would view this inheritance system as barbaric if they understood its full truth. The main kingdom considers itself more civilized, yet some of its most essential institutions rest on practices even outsiders would condemn.</p>
+
+  <hr class="sep">
+
+  <h3 id="the-crown">The Crown</h3>
+  <p>The imperial crown sits at the symbolic centre of the kingdom, but its practical authority is weaker than imperial ceremony suggests.</p>
+  <p>The current ruler is young, weak, and politically vulnerable. He inherits the throne, the palace, the rituals, and the public legitimacy of the imperial line, but not necessarily the strength to command the kingdom's great houses.</p>
+  <p>A deeper secret surrounds the imperial bloodline itself. Long ago, something happened that broke or displaced the line of the first king. The current imperial family may not be the true continuation of that original line.</p>
+  <p>By chance, or perhaps by design, the true heir may now exist outside the throne: the commander of the Imperial Guard.</p>
+  <p>This truth is not publicly known. It may not even be fully understood by all those involved. It is a buried fault line beneath the kingdom's highest institutions.</p>
+
+  <hr class="sep">
+
+  <h3 id="mage-order">The Mage Order</h3>
+  <p>The Mage Order is one of the most powerful institutions in the kingdom, though its power is indirect, secretive, and increasingly unstable.</p>
+  <p>Mages cannot create or consume magic themselves, but they can perceive and manipulate it. This makes them essential to the entire system of imperial control. They understand inheritance rituals, Conduit management, magical engineering, ancient ruins, wards, weapons, blood-binding, and the hidden tides of magic returning to the world.</p>
+  <p>The Mage Order is closely aligned with the state, but not identical to it. It is a semi-independent institution with its own hierarchy, secrets, traditions, and long-term plans.</p>
+  <p>For much of history, the Mage Order was guided by powerful, long-lived mages whose wisdom, discipline, and magical understanding gave the kingdom stability. That age is ending. Mages have been in decline for generations. Most living mages are weaker, less capable, and less insightful than their predecessors.</p>
+  <p>This decline is a tightly guarded secret.</p>
+  <p>The public still believes the Mage Order is ancient, wise, and nearly infallible. Many nobles still fear it. Many commoners still revere it. But internally, the order is struggling. Its rituals are less reliable, its knowledge is fragmented, and its younger mages are often inadequate to the burdens placed upon them.</p>
+  <p>At the head of the order is an ancient and mysterious mage: a figure of immense age, reputation, and fading clarity. He was once considered wise beyond measure, but is now thought by some to be vanished, mad, broken, or lost inside plans too old and complex for others to understand. Whether he is failing, manipulating events, or pursuing some desperate hidden purpose remains unknown.</p>
+
+  <hr class="sep">
+
+  <h3 id="conduits-state">Conduits</h3>
+  <p>Conduits are controlled by the state.</p>
+  <p>They are the kingdom's most valuable magical resource: living sources of raw power. Because they can draw immense magical energy into the physical world but cannot truly control it, they are treated as batteries, weapons, ritual components, and infrastructure.</p>
+  <p>The Mage Order uses Conduits to craft powerful weapons, fuel experiments, maintain magical systems, and support state projects. The crown also lends access to Mages and Conduits to noble houses as a political tool.</p>
+  <p>This is one of the primary ways the state maintains influence over the nobility.</p>
+  <p>A noble house may own land, farms, mines, forests, armies, and cities, but it cannot easily reproduce the magical infrastructure of the state. Access to Conduits and Mage-controlled works gives the crown leverage. It allows the state to reward loyal houses, punish rivals, and prevent the nobles from becoming completely independent.</p>
+  <p>This system is powerful, but fragile. If the Mage Order continues to decline, and if Conduits become harder to manage as magic returns, the state's greatest tool of control may become one of its greatest dangers.</p>
+
+  <hr class="sep">
+
+  <h3 id="imperial-guard">The Imperial Guard</h3>
+  <p>The Imperial Guard is the elite military arm of the crown and the Mage Order. It is not a normal army. It is a small, terrifying cadre of warriors selected, trained, equipped, and bound for the purpose of keeping the noble houses in line and protecting the imperial family.</p>
+  <p>The Guard is composed of the most powerful naturally born Ascendants who are identified young. These children are recruited into the Guard and trained from an early age. Many do not survive the process. Those who do become the most skilled warriors in the kingdom.</p>
+  <p>Unlike many noble Ascendants, who may forgo serious military training because their innate power is already enough to dominate ordinary people, the Imperial Guard combines extreme natural ability with lifelong discipline. This makes them vastly more dangerous than most noble warriors.</p>
+  <p>Their strength is not only physical. The Guard is closely linked to the Mage Order. When not on duty, their quarters are within or near the Mage Tower, reinforcing the bond between imperial military power and mage authority.</p>
+  <p>The final element of the Guard's power is their armour.</p>
+  <p>From the moment a recruit is accepted, the Mage Order begins a lifelong process of binding special metal into armour through blood, ritual, and magical sympathy. Over years, the armour is slowly linked to the Ascendant who wears it. It absorbs, reflects, and harmonizes with their innate power, becoming more than equipment. It becomes an extension of the warrior.</p>
+  <p>This blood-bound armour makes the Imperial Guard unmatched by ordinary forces.</p>
+  <p>A single noble house, no matter how proud or wealthy, would not be able to stand against the Guard. This is one of the reasons the nobles remain cautious. As long as the noble houses remain divided, the Imperial Guard can crush any one of them.</p>
+  <p>The state therefore survives through balance: the Guard provides force, the Mage Order provides manipulation, and the crown works constantly to prevent the noble houses from uniting.</p>
+
+  <hr class="sep">
+
+  <h3 id="guard-commander">The Commander of the Guard</h3>
+  <p>The Imperial Guard is led by an older dark-skinned warrior widely regarded as the greatest living fighter in the kingdom.</p>
+  <p>He is respected, feared, and known even among the noble houses as a figure beyond ordinary politics. His skill, power, experience, and command over the Guard make him one of the most dangerous individuals alive.</p>
+  <p>His hidden significance is far greater than his title. He may be the true heir to the original imperial bloodline, descended from the line of the first king rather than the current ruling family.</p>
+  <p>This secret has enormous political and mythic weight. If revealed, it could shatter the legitimacy of the throne, destabilize the Guard, divide the Mage Order, and ignite conflict among the noble houses.</p>
+  <p>Whether his position is chance, fate, or the result of the ancient mage's long manipulation remains unknown.</p>
+
+  <hr class="sep">
+
+  <h3 id="noble-houses">Noble Houses</h3>
+  <p>The noble houses are the kingdom's dominant landholding powers.</p>
+  <p>They control farms, forests, mines, villages, roads, local soldiers, estates, taxes, and most of the common goods that keep the kingdom alive. The state controls magical resources, but the nobles control much of the material economy.</p>
+  <p>Most noble houses are ruled by Ascendant bloodlines. However, being an Ascendant does not automatically make someone noble. Natural magical births still occur among commoners, and not every Ascendant belongs to a great house. The nobility's dominance exists because it has spent generations capturing, managing, and reproducing magical inheritance in its favour.</p>
+  <p>The houses vary widely. Some are honourable by the standards of the kingdom. Some are pragmatic. Some are cruel. Some are weak. Some are decadent. Some are useful. Some are monstrous. One major house in particular should stand as an especially powerful and dangerous example of noble corruption.</p>
+  <p>Most nobles rule from the capital rather than living permanently on their lands. They visit their territories to collect tithes, settle disputes, arrange marriages, inspect holdings, or display authority, but many are disconnected from the people whose lives they control.</p>
+  <p>This creates a disjointed kingdom. The noble houses own the countryside, but many nobles are socially and politically absorbed into the capital. Their lands are managed by stewards, lesser relatives, local officials, soldiers, and private interests.</p>
+
+  <hr class="sep">
+
+  <h3 id="noble-armies">Noble Armies and the Absence of a State Army</h3>
+  <p>The kingdom does not possess a true centralized state army in the modern sense.</p>
+  <p>Each major house maintains its own private forces. Cities have garrisons. Regions have militias, guards, patrols, and noble troops. The crown has the Imperial Guard and access to Mage-supported power, but it does not command a vast standing army loyal only to the state.</p>
+  <p>This is a major weakness.</p>
+  <p>It means the crown depends on noble cooperation for large-scale war, taxation, supply, and regional enforcement. It also means the noble houses remain dangerous. The state can destroy an isolated house with the Guard, but if enough houses united, the outcome would be uncertain.</p>
+  <p>The crown's strategy is therefore to prevent unity. It manipulates rivalries, grants privileges, appoints regents, lends magical assets, withholds support, and allows old grudges to continue so that the nobles remain divided.</p>
+
+  <hr class="sep">
+
+  <h3 id="ascendants-outside">Ascendants Outside the Nobility</h3>
+  <p>Not every Ascendant becomes a noble.</p>
+  <p>The most powerful naturally born Ascendants may be recruited into the Imperial Guard. Those who do not meet the threshold, or who survive training but are not selected, may be returned to their noble lands, absorbed into house armies, placed in officer roles, or used as elite retainers.</p>
+  <p>For common-born Ascendants, life can be dangerous. Their power makes them valuable, but also vulnerable to recruitment, coercion, noble interest, Mage Order attention, or political exploitation. A common-born Ascendant may rise, but rarely freely.</p>
+  <p>The army and noble military structures are the main path for Ascendants who exist outside the ruling bloodlines.</p>
+
+  <hr class="sep">
+
+  <h3 id="cities-regents">The Main Cities and Regents</h3>
+  <p>The other major cities of the kingdom are formally owned by the state, but ruled through appointed noble regents.</p>
+  <p>This is one of the crown's mechanisms of internal control. By appointing noble houses to govern major cities, the state rewards loyalty, balances rivals, creates dependencies, and prevents any single house from becoming too comfortable in its own territory.</p>
+  <p>In practice, this creates a messy political arrangement. Regents rule in the name of the crown, but their own house interests always influence them. Local cities develop their own identities, power networks, guilds, garrisons, and loyalties.</p>
+  <p>The rule of law varies from city to city. The capital remains the place where state authority is most visible. Outside it, even in major cities, the crown's influence becomes more negotiated than absolute.</p>
+
+  <hr class="sep">
+
+  <h3 id="autonomy-stagnation">Local Autonomy and Stagnation</h3>
+  <p>Most cities and noble territories possess a significant degree of autonomy. This is partly political and partly practical. Distances are long, roads are dangerous, and the state cannot directly administer every region.</p>
+  <p>The south embraces this autonomy most openly. Its noble houses and cities see themselves as part of the kingdom, but not subordinate in spirit to the capital. The north is autonomous through distance, climate, and tradition. The east is autonomous through necessity, because survival on the frontier demands faster decisions than the capital can provide.</p>
+  <p>Minor wars between nobles happen from time to time. Border disputes, inheritance conflicts, trade rivalries, raids, and private vendettas are not unknown. However, the kingdom has been politically stagnant for roughly a century. No major shift in power has occurred for generations. The system is decaying, but slowly.</p>
+  <p>This stagnation is part of what makes the return of magic so dangerous. The kingdom has become used to managing old tensions, not new ones.</p>
+
+  <hr class="sep">
+
+  <h3 id="eastern-frontier">The Eastern Frontier</h3>
+  <p>The Eastern Bastion City and its surrounding garrisons exist to protect the kingdom from the wild east.</p>
+  <p>The eastern frontier is not a clean military border. It is a vast, unstable region of patrol roads, watchtowers, fortified villages, ranger outposts, old ruins, monster trails, and half-controlled wilderness.</p>
+  <p>The garrison's primary task is to prevent raiding parties, goblin bands, orc groups, ogres, beasts, and other threats from penetrating too far into the kingdom. The monsters of this region have not organized into a true invasion force in recent memory. Because of this, the western nobles treat the eastern threat as manageable, distant, and politically unimportant.</p>
+  <p>The people of the east know better.</p>
+  <p>The eastern garrisons are active and experienced, but they are not prepared for a massive invasion. They know this. Their commanders know this. The nobles and commoners of the frontier understand that if the east truly erupts, they will be the first to suffer and the last to receive help.</p>
+  <p>This creates deep resentment toward the western nobles, who benefit from the frontier's protection while dismissing its warnings.</p>
+
+  <hr class="sep">
+
+  <h3 id="law-impunity">Law and Noble Impunity</h3>
+  <p>The rule of law is weak, uneven, and deeply class-based.</p>
+  <p>In theory, the kingdom has imperial law. In practice, law applies most strongly where the state has direct power: the capital, the palace districts, the Mage Tower, state roads, major ports, and certain appointed city governments.</p>
+  <p>Outside these areas, noble authority dominates.</p>
+  <p>Nobles can inflict violence, abuse, punishment, seizure, and humiliation on commoners with little fear of legal consequence. Such acts may be frowned upon if they are excessive, politically inconvenient, or publicly destabilizing, but they are rarely punished simply because they are wrong.</p>
+  <p>The only force that can truly hold nobles accountable is the Imperial Guard, and the Guard is not a police force. It intervenes when noble behaviour threatens the balance of the kingdom, challenges the crown, endangers state interests, or creates an opportunity for political action.</p>
+  <p>This creates an unspoken system of limits rather than true law.</p>
+  <p>If the state oversteps too often, it risks uniting the nobles against it. If a noble oversteps too dramatically, and if enough rivals are willing to look away, the state may use the Imperial Guard to crush them. Justice is therefore political, not moral.</p>
+  <p>Commoners understand this clearly. The law exists, but it does not exist equally for them.</p>
+
+  <hr class="sep">
+
+  <h3 id="guilds-economy">Guilds, Merchants, and Common Economy</h3>
+  <p>Merchant guilds, craft guilds, and civic institutions exist, but they are mostly local rather than kingdom-wide.</p>
+  <p>The capital contains the most developed guild networks because the state directly controls the city and surrounding lands. Other major cities have their own true guild structures, shaped by regional trade, local law, noble influence, and geography.</p>
+  <p>On noble lands, guilds are weaker and more dependent on the house that controls the territory. A mining guild, logging network, farming collective, or merchant association may exist, but it ultimately answers to the local noble power. The structure varies greatly depending on the temperament, competence, greed, and stability of the ruling house.</p>
+  <p>The state is primarily concerned with magical resources, Conduits, Mage-controlled infrastructure, secret mines, imperial roads, and strategic assets. Ordinary goods such as grain, timber, metals, livestock, cloth, and regional trade remain largely in the hands of noble houses, city authorities, merchants, and local powers.</p>
+  <p>This economic split is another reason the kingdom is fragile. The state controls magic, but the nobles control much of the material world.</p>
+
+  <hr class="sep">
+
+  <h3 id="fragile-balance">The Fragile Balance</h3>
+  <p>The kingdom survives because every major power needs something from the others.</p>
+  <ul class="themes">
+    <li>The crown needs noble goods, taxes, armies, and regional obedience.</li>
+    <li>The nobles need legitimacy, magical access, imperial recognition, and protection from each other.</li>
+    <li>The Mage Order needs state authority, secrecy, Conduits, ancient knowledge, and political protection.</li>
+    <li>The Imperial Guard needs the crown and Mage Order to justify its existence.</li>
+    <li>The commoners need protection, work, food, and local stability, even under an unjust system.</li>
+    <li>The cities need trade, autonomy, and enough order to survive.</li>
+  </ul>
+  <p>No faction is strong enough to rule cleanly. No faction is weak enough to ignore.</p>
+  <p>This is the kingdom's true condition: not a stable empire, but a long-standing compromise built on secrets, exploitation, fear, and mutual dependence.</p>
+
+  <blockquote class="closing">As magic returns, this balance is beginning to fail.</blockquote>
+</section>
+
+<section id="magic-metaphysics">
+  <h2><span class="num">7.</span>Magic and Metaphysics</h2>
+
+  <p>Magic is a natural phenomenon caused by a connection between the physical world and another unseen realm. This realm is not understood by the people of the world. In fact, almost no one in the main kingdom is even aware that such a realm exists.</p>
+  <p>To most people, magic is simply part of the world: rare, dangerous, hereditary, mysterious, and increasingly active.</p>
+  <p>Mages can perceive magic more clearly than anyone else. They see strange runes, invisible currents, symbolic structures, and shifting winds of power moving through the world. However, even mages do not truly understand what they are seeing. They study the effects of magic, manipulate its flow, preserve rituals, and maintain official doctrine, but their knowledge is incomplete and often wrong.</p>
+  <p>Magic is therefore not a science in the modern sense. It is an ancient natural force that can be observed, shaped, harvested, inherited, and misused, but not fully explained.</p>
+
+  <hr class="sep">
+
+  <h3 id="hidden-realm">The Hidden Realm</h3>
+  <p>There is only one true magical realm.</p>
+  <p>The people of the world may describe it in many different ways: the spirit realm, the chaos realm, the god-realm, the deep current, the unseen world, or the place beyond. These are cultural interpretations, not separate dimensions.</p>
+  <p>The main kingdom does not officially understand the existence of this realm. Its scholars, priests, mages, and nobles may have theories about the source of magic, but none possess the full truth.</p>
+  <p>The connection between the physical world and the magical realm appears to strengthen and weaken across history. For centuries, this connection has been faint. Magic has been rare, bloodlines have weakened, and the supernatural has grown distant. Now the connection is strengthening again.</p>
+  <p>Something is awakening within the magical realm.</p>
+  <p>Its nature is unknown.</p>
+  <p>It may be an entity from beyond the world, something native to the magical realm, something originally from the physical world that was cast out, or something stranger than any surviving theory. The truth should remain uncertain.</p>
+
+  <hr class="sep">
+
+  <h3 id="ancient-prophecy">The Ancient Prophecy</h3>
+  <p>In ancient times, during the age before or during the last great cataclysm, something emerged or threatened to emerge from the magical realm.</p>
+  <p>There are fragmented stories of a hero, or perhaps a group of heroes, who cast this force back. Some versions say they banished it into the magical realm. Others say they sealed it away. Others claim they defeated it only temporarily.</p>
+  <p>A prophecy was left behind: one day the force would return, and only an heir of the line of kings would be able to unlock the secret to defeating it.</p>
+  <p>Very few people know the true form of this prophecy. Even among those who do, there is no guarantee that they understand it correctly. Across the world, variations of similar myths survive in different cultures, religions, poems, ruins, and oral traditions. Some are contradictory. Some may be corrupted. Some may be deliberately altered.</p>
+  <p>The prophecy may be true.</p>
+  <p>It may be a half-truth.</p>
+  <p>It may be misunderstood entirely.</p>
+  <p>What matters is that powerful people believe enough of it to act.</p>
+
+  <hr class="sep">
+
+  <h3 id="three-gifts">The Three Human Gifts</h3>
+  <p>A rare few humans are born with an innate connection to magic. These gifts appear in three known forms: Ascendants, Conduits, and Mages.</p>
+  <p>Each gift relates to magic differently.</p>
+  <ul class="themes">
+    <li>Ascendants consume magic.</li>
+    <li>Conduits draw magic into the world.</li>
+    <li>Mages perceive and manipulate magic.</li>
+  </ul>
+  <p>These gifts shape the entire power structure of the main kingdom.</p>
+
+  <hr class="sep">
+
+  <h3 id="magic-ascendants">Ascendants</h3>
+  <p>Ascendants are born with the ability to consume and refine magic within their own bodies. This grants them extraordinary physical advantages: strength, speed, resilience, healing, and longevity.</p>
+  <p>Their power does not depend on discipline, training, or moral worth. An Ascendant who trains constantly may become a terrifying warrior. Another who lives lazily in luxury may become soft, overweight, or physically unimpressive, yet still remain stronger and faster than ordinary humans.</p>
+  <p>Ascendants are the foundation of the noble class because noble families discovered how to consolidate magical inheritance. Their superiority is real, but it is physical rather than moral. They are not wiser, kinder, braver, or more deserving than others.</p>
+
+  <hr class="sep">
+
+  <h3 id="magic-mages">Mages</h3>
+  <p>Mages are born with the ability to perceive and manipulate magic. They cannot create magical energy themselves, and they cannot consume it as Ascendants do, but they can shape magic wherever it exists.</p>
+  <p>Mages see the hidden structure of magic: currents, winds, runes, patterns, and flows invisible to everyone else. Their power depends on perception, discipline, training, intelligence, and innate strength.</p>
+  <p>A powerful mage can manipulate large amounts of magical energy efficiently. A weaker mage may burn through a valuable magical source while only extracting a fraction of its potential.</p>
+  <p>All mages in the main kingdom are required to submit to the Mage Order. The Order attempts to identify mage-born children at a young age and take them for training. Some children slip through the system, either because their families hide them, their powers emerge late, or local authorities fail to report them.</p>
+  <p>Unregistered mages are considered extremely dangerous.</p>
+  <p>One of the darker duties of the Imperial Guard is to hunt down and kill rogue mages. This is justified as necessary for public safety and state security, but it also ensures that the Mage Order maintains its monopoly over magical knowledge.</p>
+
+  <hr class="sep">
+
+  <h3 id="elemental-hearts">Elemental Hearts</h3>
+  <p>In wild places, ancient ruins, deep forests, mountains, and magically active regions, elemental creatures can sometimes be found.</p>
+  <p>These beings are manifestations or concentrations of natural magical forces. Many possess crystalline hearts capable of storing magical energy.</p>
+  <p>Elemental hearts are among the most important magical resources in the kingdom. They can be used to power mage abilities, craft enchanted equipment, stabilize rituals, fuel experiments, and support magical infrastructure.</p>
+  <p>The Mage Order controls them tightly.</p>
+  <p>A mage does not simply own such a heart as personal property. Like weapons from an armoury, elemental hearts are requested, assigned, tracked, and returned after use. This gives the Mage Order control over what even its own members can do.</p>
+  <p>A skilled mage can draw enormous value from a single heart. A weak or poorly trained mage may exhaust one quickly and waste most of its potential.</p>
+
+  <hr class="sep">
+
+  <h3 id="magic-conduits">Conduits</h3>
+  <p>Conduits are born with the ability to draw raw magical energy from the hidden realm into the physical world.</p>
+  <p>They can produce immense power, but they cannot truly control it. Without a mage, ritual structure, or magical device, a Conduit is mostly a source of dangerous energy rather than a trained spellcaster.</p>
+  <p>In the main kingdom, all Conduits are required to be registered to the state.</p>
+  <p>Like mages, they are pressed into service. Unlike mages, they are treated primarily as resources. A young mage must be trained, educated, persuaded, and integrated into the Order. The Order needs a degree of cooperation from its mages. Conduits receive far less care. Compliance is expected, and disobedience is often met with harsh punishment, confinement, cruelty, or worse.</p>
+  <p>The state uses Conduits as living power sources: for rituals, military projects, magical engineering, weapons, infrastructure, and experiments.</p>
+
+  <hr class="sep">
+
+  <h3 id="noble-conduits">Noble Conduits</h3>
+  <p>There is one important exception to the normal treatment of Conduits: those born into noble houses.</p>
+  <p>Noble-born Conduits are still legally owned by the state, but they are granted privileges and are often permitted to remain with their families. It is common for a major noble house to have one or more Conduits among its members: brothers, sisters, cousins, or other relatives who occupy a strange and politically delicate role.</p>
+  <p>Technically, the state can withdraw these Conduits at any time. In practice, convention allows them to remain with their house unless the crown or Mage Order wishes to punish or pressure the family.</p>
+  <p>This arrangement is one of the many compromises that keeps the kingdom functioning.</p>
+  <p>Noble Conduits are valued by their houses, but their usefulness depends heavily on access to Mage-controlled tools and armaments. Without mages or enchanted devices, their raw energy is difficult to direct.</p>
+
+  <hr class="sep">
+
+  <h3 id="magical-armaments">Magical Armaments</h3>
+  <p>One of the main sources of state power is its control over magical armaments.</p>
+  <p>The Mage Order designs, maintains, lends, and sometimes sells rare magical weapons, armour, and devices. These items allow Conduits to channel their raw energy into specific effects without needing true control over magic.</p>
+  <p>To noble houses, magical armaments are prized possessions. They are symbols of favour, weapons of war, and tools of political leverage.</p>
+  <p>Most magical armaments work through the same basic principle: they funnel a Conduit's energy into a defined function.</p>
+  <p>Examples include:</p>
+  <ul class="themes">
+    <li>magical crossbows that fire immensely powerful shots</li>
+    <li>projectile devices that launch charged bolts</li>
+    <li>explosive ammunition charged by Conduit energy</li>
+    <li>blades that become unnaturally sharp when powered</li>
+    <li>armour that briefly strengthens, shields, or stabilizes the wearer</li>
+    <li>specialist tools used for siegecraft, assassination, monster hunting, or ritual work</li>
+  </ul>
+  <p>This gives Conduits a distinct battlefield role. They are not traditional spellcasters. They are closer to dangerous magical operators, supported by devices, weapons, tools, and prepared systems.</p>
+  <p>For gameplay purposes, this supports a Conduit archetype closer to a rogue, tinkerer, or ranged specialist: someone who uses gadgets, charged weapons, unstable devices, and clever tools rather than direct spellcasting.</p>
+
+  <hr class="sep">
+
+  <h3 id="rune-crafting">Rune-Crafting</h3>
+  <p>There is another form of magical enhancement in the wider world, though it is no longer understood in the main kingdom.</p>
+  <p>Through rune-crafting, magical runes can be carved or inscribed into the body through painstaking and painful ritual. These runes act as focal points for magical energy, allowing the bearer to access powers outside their natural gift.</p>
+  <p>This means that, in some parts of the world, Conduits and Ascendants may gain abilities beyond their innate nature.</p>
+  <p>Rune-crafting was once known more widely, but it has been lost in the main kingdom. Whether it was forgotten, suppressed, deliberately erased, or abandoned after catastrophe remains unknown.</p>
+  <p>This practice should be treated as a deeper-world concept rather than a major focus of the first iteration of the game. It exists, but does not need to be explained or foregrounded immediately.</p>
+
+  <hr class="sep">
+
+  <h3 id="ancient-vs-modern">Ancient Magic and Modern Control</h3>
+  <p>Modern magic in the kingdom is institutional, restricted, and bureaucratic.</p>
+  <ul class="themes">
+    <li>Mages are registered and trained.</li>
+    <li>Conduits are registered and owned.</li>
+    <li>Elemental hearts are requisitioned.</li>
+    <li>Magical armaments are controlled.</li>
+    <li>Rogue mages are hunted.</li>
+    <li>Inheritance rituals are hidden.</li>
+    <li>Ancient structures are occupied without being understood.</li>
+  </ul>
+  <p>This creates the illusion that the kingdom controls magic.</p>
+  <p>It does not.</p>
+  <p>The kingdom controls only the parts of magic it has learned to exploit. The deeper nature of magic remains unknown. As the hidden realm awakens, old forces return, elemental creatures grow more active, undead rise more often, ruins stir, and the Mage Order's knowledge proves increasingly inadequate.</p>
+  <p>The state's greatest mistake is believing that centuries of successful containment are the same as understanding.</p>
+  <p>They are not.</p>
+
+  <blockquote class="closing">Magic is returning, and the world is becoming strange again.</blockquote>
+</section>
+
+</div>
+
+<script>
+  const links = document.querySelectorAll('.sidebar a');
+  const sections = document.querySelectorAll('section[id]');
+  const byId = {};
+  links.forEach(a => { byId[a.getAttribute('href').slice(1)] = a; });
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(a => a.classList.remove('active'));
+        const link = byId[entry.target.id];
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
