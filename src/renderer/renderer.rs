@@ -4,11 +4,11 @@ use wgpu::{ColorTargetState, CurrentSurfaceTexture};
 use winit::window::Window;
 
 use crate::{
-  entity::{Entity, Facing},
+  entity::{Action, Facing},
   renderer::{
     model_transforms::ModelTransforms,
     pipeline::{CreatePipelineDesc, Pipeline, PipelineType},
-    texture::Texture,
+    sprite_set::SpriteSet,
     uniform::{UniformManager, UniformVariant},
     vertex::{Vertex, grid_vertices, unit_square},
   },
@@ -26,9 +26,7 @@ pub struct Renderer {
   grid_buffer: Option<wgpu::Buffer>,
   uniform_manager: UniformManager,
   model_transforms: ModelTransforms,
-  texture: Texture,
-  direction_textures: [Texture; 8],
-  walking_animation_textures_s: [Texture; 4],
+  sprite_set: SpriteSet,
 }
 
 impl Renderer {
@@ -90,32 +88,7 @@ impl Renderer {
 
     let model_transforms = ModelTransforms::new(&device);
 
-    let texture = Texture::new(
-      &device,
-      &queue,
-      "src/assets/goblin/goblin_0001.png",
-      "goblin",
-    );
-
-    let texture_set: [Texture; 8] = std::array::from_fn(|i| {
-      let n = i + 1;
-      Texture::new(
-        &device,
-        &queue,
-        &format!("src/assets/goblin/goblin_000{}.png", n),
-        &format!("goblin_{}", n),
-      )
-    });
-
-    let walking_animation_textures_s: [Texture; 4] = std::array::from_fn(|i| {
-      let n = i + 1;
-      Texture::new(
-        &device,
-        &queue,
-        &format!("src/assets/goblin_run_s/run_s_000{}.png", n),
-        &format!("goblin_{}", n),
-      )
-    });
+    let sprite_set = SpriteSet::new(&device, &queue);
 
     Self {
       surface,
@@ -128,9 +101,7 @@ impl Renderer {
       pipelines: std::array::from_fn(|_| None),
       uniform_manager,
       model_transforms,
-      texture,
-      direction_textures: texture_set,
-      walking_animation_textures_s,
+      sprite_set,
     }
   }
 
@@ -149,7 +120,12 @@ impl Renderer {
               .bind_group_layout,
           ),
           Some(&self.model_transforms.bind_group_layout),
-          Some(&self.texture.bind_group_layout),
+          Some(
+            &self
+              .sprite_set
+              .resolve(Action::Idle, Facing::S, 0)
+              .bind_group_layout,
+          ),
         ],
         targets: &[Some(ColorTargetState {
           format: swapchain_format,
@@ -306,26 +282,13 @@ impl Renderer {
       rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
 
       if let Some(player) = world.entities.iter().find(|e| e.is_player) {
-        let frame = (player.anim_tick / Entity::TICKS_PER_FRAME) % Entity::WALK_FRAMES;
-        match player.facing() {
-          Facing::S => {
-            if player.anim_tick == 0 {
-              rpass.set_bind_group(2, &self.direction_textures[0].bind_group, &[])
-            } else {
-              rpass.set_bind_group(2, &self.walking_animation_textures_s[frame].bind_group, &[])
-            }
-          }
-          Facing::SE => rpass.set_bind_group(2, &self.direction_textures[1].bind_group, &[]),
-          Facing::E => rpass.set_bind_group(2, &self.direction_textures[2].bind_group, &[]),
-          Facing::NE => rpass.set_bind_group(2, &self.direction_textures[3].bind_group, &[]),
-          Facing::N => rpass.set_bind_group(2, &self.direction_textures[4].bind_group, &[]),
-          Facing::NW => rpass.set_bind_group(2, &self.direction_textures[5].bind_group, &[]),
-          Facing::W => rpass.set_bind_group(2, &self.direction_textures[6].bind_group, &[]),
-          Facing::SW => rpass.set_bind_group(2, &self.direction_textures[7].bind_group, &[]),
-        }
-      } else {
-        rpass.set_bind_group(2, &self.texture.bind_group, &[]);
-      };
+        let bind_group = &self
+          .sprite_set
+          .resolve(player.action, player.facing, player.anim_tick)
+          .bind_group;
+        rpass.set_bind_group(2, bind_group, &[]);
+      }
+
       rpass.draw(0..6, 0..self.model_transforms.count as u32)
     }
 

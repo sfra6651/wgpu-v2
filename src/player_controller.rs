@@ -30,9 +30,6 @@ fn handle_pressed(player: &mut Entity, key: PhysicalKey) {
 
   player.velocity.x = player.velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
   player.velocity.y = player.velocity.y.clamp(-PLAYER_SPEED, PLAYER_SPEED);
-
-  // set the dir, only set on press, should store the characters current direction - on key release direction does not change
-  player.dir = player.velocity.normalize_or_zero();
 }
 
 fn handle_released(player: &mut Entity, key: PhysicalKey) {
