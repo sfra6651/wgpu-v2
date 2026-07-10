@@ -6,6 +6,11 @@ pub enum Action {
   Run,
 }
 
+#[derive(Copy, Clone)]
+pub enum AiType {
+  Goblin,
+}
+
 pub struct Entity {
   pub pos: Vec2,
   pub size: Vec2,
@@ -14,6 +19,7 @@ pub struct Entity {
   pub anim_tick: usize,
   pub facing: Facing,
   pub action: Action,
+  pub ai: Option<AiType>,
 }
 
 #[derive(Copy, Clone)]

@@ -19,14 +19,14 @@ impl SpriteSet {
     }
   }
 
-  pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+  pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, name: &str) -> Self {
     let idle_textures: [Texture; 8] = std::array::from_fn(|i| {
       let n = i + 1;
       Texture::new(
         device,
         queue,
-        &format!("src/assets/goblin/goblin_000{}.png", n),
-        &format!("goblin_{}", n),
+        &format!("src/assets/{}/{}_000{}.png", name, name, n),
+        &format!("{}_{}", name, n),
       )
     });
 
@@ -38,8 +38,8 @@ impl SpriteSet {
         Texture::new(
           device,
           queue,
-          &format!("src/assets/goblin/run_{}_000{}.png", code, n),
-          &format!("goblin_{}_{}", code, n),
+          &format!("src/assets/{}/run_{}_000{}.png", name, code, n),
+          &format!("{}_{}_{}", name, code, n),
         )
       })
     });

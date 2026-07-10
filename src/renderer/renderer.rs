@@ -8,7 +8,7 @@ use crate::{
   renderer::{
     model_transforms::ModelTransforms,
     pipeline::{CreatePipelineDesc, Pipeline, PipelineType},
-    sprite_set::SpriteSet,
+    sprite_set::{self, SpriteSet},
     uniform::{UniformManager, UniformVariant},
     vertex::{Vertex, grid_vertices, unit_square},
   },
@@ -27,6 +27,7 @@ pub struct Renderer {
   uniform_manager: UniformManager,
   model_transforms: ModelTransforms,
   sprite_set: SpriteSet,
+  goblin_sprite_set: SpriteSet,
 }
 
 impl Renderer {
@@ -88,7 +89,8 @@ impl Renderer {
 
     let model_transforms = ModelTransforms::new(&device);
 
-    let sprite_set = SpriteSet::new(&device, &queue);
+    let sprite_set = SpriteSet::new(&device, &queue, "conduit");
+    let goblin_sprite_set = SpriteSet::new(&device, &queue, "goblin");
 
     Self {
       surface,
@@ -102,6 +104,7 @@ impl Renderer {
       uniform_manager,
       model_transforms,
       sprite_set,
+      goblin_sprite_set,
     }
   }
 
@@ -281,15 +284,21 @@ impl Renderer {
       );
       rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
 
-      if let Some(player) = world.entities.iter().find(|e| e.is_player) {
-        let bind_group = &self
-          .sprite_set
-          .resolve(player.action, player.facing, player.anim_tick)
-          .bind_group;
-        rpass.set_bind_group(2, bind_group, &[]);
+      for (i, entity) in world.entities.iter().enumerate() {
+        let sprite_s = if entity.is_player {
+          &self.sprite_set
+        } else {
+          &self.goblin_sprite_set
+        };
+
+        let texture = sprite_s.resolve(entity.action, entity.facing, entity.anim_tick);
+
+        rpass.set_bind_group(2, &texture.bind_group, &[]);
+
+        rpass.draw(0..6, i as u32..i as u32 + 1);
       }
 
-      rpass.draw(0..6, 0..self.model_transforms.count as u32)
+      //rpass.draw(0..6, 0..self.model_transforms.count as u32)
     }
 
     self.queue.submit(Some(encoder.finish()));

@@ -76,13 +76,32 @@
     list-style: none;
     padding-left: 1rem;
     margin-top: 0.3rem;
+    display: none;
   }
+  .sidebar li.open > ol.sub { display: block; }
   .sidebar ol.sub li {
     margin-bottom: 0.2rem;
     font-size: 0.85rem;
   }
   .sidebar ol.sub a { color: var(--muted); }
   .sidebar ol.sub a:hover { color: var(--accent); }
+  .sidebar .sec {
+    display: flex;
+    align-items: center;
+  }
+  .sidebar .sec > a { flex: 1; }
+  .sidebar .tgl {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.3rem;
+    line-height: 1;
+    transition: transform 0.15s ease;
+  }
+  .sidebar .tgl:hover { color: var(--accent); }
+  .sidebar li.open > .sec .tgl { transform: rotate(90deg); }
   .wrap {
     max-width: 760px;
     margin: 0 auto;
@@ -185,7 +204,7 @@
   <ol>
     <li><a href="#world-vision">World Vision</a></li>
     <li><a href="#visual-style">Visual Style</a></li>
-    <li><a href="#magic-born">The Three Magic-Born Human Types</a>
+    <li class="has-sub"><div class="sec"><a href="#magic-born">The Three Magic-Born Human Types</a><button class="tgl" aria-label="Toggle subsections">&#9656;</button></div>
       <ol class="sub">
         <li><a href="#ascendants">Ascendants</a></li>
         <li><a href="#conduits">Conduits</a></li>
@@ -193,7 +212,7 @@
       </ol>
     </li>
     <li><a href="#world-structure-geography">World Structure &amp; Geography</a></li>
-    <li><a href="#main-kingdom">The Main Kingdom</a>
+    <li class="has-sub"><div class="sec"><a href="#main-kingdom">The Main Kingdom</a><button class="tgl" aria-label="Toggle subsections">&#9656;</button></div>
       <ol class="sub">
         <li><a href="#imperial-capital">The Imperial Capital</a></li>
         <li><a href="#mage-tower">The Mage Tower</a></li>
@@ -202,7 +221,7 @@
         <li><a href="#southern-cities">The Southern Cities</a></li>
       </ol>
     </li>
-    <li><a href="#power-structure">Kingdom Power Structure</a>
+    <li class="has-sub"><div class="sec"><a href="#power-structure">Kingdom Power Structure</a><button class="tgl" aria-label="Toggle subsections">&#9656;</button></div>
       <ol class="sub">
         <li><a href="#magical-inheritance">Magical Inheritance</a></li>
         <li><a href="#ascendant-consolidation">The Ascendant Nobility</a></li>
@@ -222,7 +241,7 @@
         <li><a href="#fragile-balance">The Fragile Balance</a></li>
       </ol>
     </li>
-    <li><a href="#magic-metaphysics">Magic and Metaphysics</a>
+    <li class="has-sub"><div class="sec"><a href="#magic-metaphysics">Magic and Metaphysics</a><button class="tgl" aria-label="Toggle subsections">&#9656;</button></div>
       <ol class="sub">
         <li><a href="#hidden-realm">The Hidden Realm</a></li>
         <li><a href="#ancient-prophecy">The Ancient Prophecy</a></li>
@@ -789,12 +808,25 @@
   const byId = {};
   links.forEach(a => { byId[a.getAttribute('href').slice(1)] = a; });
 
+  document.querySelectorAll('.sidebar .tgl').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.closest('li').classList.toggle('open');
+      btn.closest('li').classList.toggle('pinned');
+    });
+  });
+
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         links.forEach(a => a.classList.remove('active'));
         const link = byId[entry.target.id];
-        if (link) link.classList.add('active');
+        if (link) {
+          link.classList.add('active');
+          document.querySelectorAll('.sidebar li.has-sub').forEach(li => {
+            if (li.contains(link)) li.classList.add('open');
+            else if (!li.classList.contains('pinned')) li.classList.remove('open');
+          });
+        }
       }
     });
   }, { rootMargin: '-10% 0px -80% 0px' });
