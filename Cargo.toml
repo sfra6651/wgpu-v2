@@ -13,6 +13,7 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
+bevy_ecs = "0.19.0"
 bytemuck = { version = "1", features = ["derive"] }
 image = { version = "0.25.10", features = ["png", "jpeg"] }
 wgpu = "29.0.0"

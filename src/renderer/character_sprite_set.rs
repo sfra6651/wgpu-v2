@@ -3,12 +3,12 @@ use crate::{
   renderer::texture::Texture,
 };
 
-pub struct SpriteSet {
+pub struct CharacterSpriteSet {
   idle: [Texture; 8],
   run: [[Texture; 4]; 8],
 }
 
-impl SpriteSet {
+impl CharacterSpriteSet {
   pub fn resolve(&self, action: Action, facing: Facing, tick: usize) -> &Texture {
     match action {
       Action::Idle => &self.idle[facing.to_i()],

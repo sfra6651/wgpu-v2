@@ -7,15 +7,17 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Fullscreen, Window, WindowId};
 
 use crate::frame_counter::FrameCounter;
-use crate::player_controller::update_player;
+use crate::player_controller::InputState;
 use crate::renderer::renderer::Renderer;
 use crate::world::World;
 
+mod app;
 mod camera;
 mod entity;
 mod frame_counter;
 mod player_controller;
 mod renderer;
+mod spatial_grid;
 mod utils;
 mod world;
 
@@ -27,13 +29,16 @@ struct App {
   frame_counter: FrameCounter,
   renderer: Option<Renderer>,
   world: Option<World>,
+  bevy_world: Option<bevy_ecs::world::World>,
   last_update: Option<Instant>,
   accumulator: f32,
+  input_state: InputState,
 }
 
 impl App {
   fn init(&mut self, window: Arc<Window>) {
     self.world = Some(World::new());
+    self.bevy_world = Some(bevy_ecs::world::World::default());
     self.renderer = Some(pollster::block_on(Renderer::new(window)));
     self.renderer.as_mut().unwrap().create_pipelines();
 
@@ -92,7 +97,7 @@ impl ApplicationHandler for App {
           // Fixed-rate update, capped at one step per frame (no catch-up queue).
           if self.accumulator >= GAME_UPDATES_PER_SEC {
             if let Some(world) = self.world.as_mut() {
-              world.update();
+              world.update(&self.input_state);
             }
             self.accumulator -= GAME_UPDATES_PER_SEC;
 
@@ -118,9 +123,7 @@ impl ApplicationHandler for App {
         event,
         is_synthetic: _,
       } => {
-        if let Some(world) = self.world.as_mut() {
-          update_player(world, &event);
-        }
+        self.input_state.handle_key_event(&event);
       }
       _ => (),
     }

@@ -1,45 +1,45 @@
+use std::collections::HashSet;
+
+use glam::Vec2;
 use winit::{
   event::{ElementState, KeyEvent},
   keyboard::{KeyCode, PhysicalKey},
 };
 
-use crate::{entity::Entity, world::World};
-
-const PLAYER_SPEED: f32 = 0.1;
-pub fn update_player(world: &mut World, event: &KeyEvent) {
-  let key = event.physical_key;
-  let Some(player) = world.entities.iter_mut().find(|e| e.is_player) else {
-    return;
-  };
-  match event.state {
-    ElementState::Pressed => handle_pressed(player, key),
-    ElementState::Released => handle_released(player, key),
-  }
-
-  world.camera.velocity = player.velocity;
+#[derive(Default)]
+pub struct InputState {
+  held: HashSet<KeyCode>,
 }
 
-fn handle_pressed(player: &mut Entity, key: PhysicalKey) {
-  match key {
-    PhysicalKey::Code(KeyCode::KeyW) => player.velocity.y += PLAYER_SPEED,
-    PhysicalKey::Code(KeyCode::KeyA) => player.velocity.x -= PLAYER_SPEED,
-    PhysicalKey::Code(KeyCode::KeyS) => player.velocity.y -= PLAYER_SPEED,
-    PhysicalKey::Code(KeyCode::KeyD) => player.velocity.x += PLAYER_SPEED,
-    _ => {}
+impl InputState {
+  pub fn handle_key_event(&mut self, event: &KeyEvent) {
+    let PhysicalKey::Code(code) = event.physical_key else {
+      return;
+    };
+    match event.state {
+      ElementState::Pressed => self.held.insert(code),
+      ElementState::Released => self.held.remove(&code),
+    };
   }
 
-  player.velocity.x = player.velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
-  player.velocity.y = player.velocity.y.clamp(-PLAYER_SPEED, PLAYER_SPEED);
+  pub fn is_down(&self, code: KeyCode) -> bool {
+    self.held.contains(&code)
+  }
 }
 
-fn handle_released(player: &mut Entity, key: PhysicalKey) {
-  match key {
-    PhysicalKey::Code(KeyCode::KeyW) => player.velocity.y -= PLAYER_SPEED,
-    PhysicalKey::Code(KeyCode::KeyA) => player.velocity.x += PLAYER_SPEED,
-    PhysicalKey::Code(KeyCode::KeyS) => player.velocity.y += PLAYER_SPEED,
-    PhysicalKey::Code(KeyCode::KeyD) => player.velocity.x -= PLAYER_SPEED,
-    _ => {}
+pub fn player_intent(input: &InputState) -> Vec2 {
+  let mut dir = Vec2::ZERO;
+  if input.is_down(KeyCode::KeyW) {
+    dir.y += 1.0
   }
-  player.velocity.x = player.velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
-  player.velocity.y = player.velocity.y.clamp(-PLAYER_SPEED, PLAYER_SPEED);
+  if input.is_down(KeyCode::KeyS) {
+    dir.y -= 1.0
+  }
+  if input.is_down(KeyCode::KeyA) {
+    dir.x -= 1.0
+  }
+  if input.is_down(KeyCode::KeyD) {
+    dir.x += 1.0
+  }
+  dir.normalize_or_zero() // diagonal is length 1, not √2
 }

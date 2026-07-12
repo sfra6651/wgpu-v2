@@ -4,11 +4,12 @@ use wgpu::{ColorTargetState, CurrentSurfaceTexture};
 use winit::window::Window;
 
 use crate::{
-  entity::{Action, Facing},
+  entity::{Action, Facing, Kind},
   renderer::{
+    character_sprite_set::CharacterSpriteSet,
     model_transforms::ModelTransforms,
     pipeline::{CreatePipelineDesc, Pipeline, PipelineType},
-    sprite_set::{self, SpriteSet},
+    texture::Texture,
     uniform::{UniformManager, UniformVariant},
     vertex::{Vertex, grid_vertices, unit_square},
   },
@@ -26,8 +27,9 @@ pub struct Renderer {
   grid_buffer: Option<wgpu::Buffer>,
   uniform_manager: UniformManager,
   model_transforms: ModelTransforms,
-  sprite_set: SpriteSet,
-  goblin_sprite_set: SpriteSet,
+  sprite_set: CharacterSpriteSet,
+  goblin_sprite_set: CharacterSpriteSet,
+  arrow_texture: Texture,
 }
 
 impl Renderer {
@@ -89,8 +91,14 @@ impl Renderer {
 
     let model_transforms = ModelTransforms::new(&device);
 
-    let sprite_set = SpriteSet::new(&device, &queue, "conduit");
-    let goblin_sprite_set = SpriteSet::new(&device, &queue, "goblin");
+    let sprite_set = CharacterSpriteSet::new(&device, &queue, "conduit");
+    let goblin_sprite_set = CharacterSpriteSet::new(&device, &queue, "goblin");
+    let arrow_texture = Texture::new(
+      &device,
+      &queue,
+      &format!("src/assets/objects/arrow.png"),
+      "arrow",
+    );
 
     Self {
       surface,
@@ -105,6 +113,7 @@ impl Renderer {
       model_transforms,
       sprite_set,
       goblin_sprite_set,
+      arrow_texture,
     }
   }
 
@@ -285,15 +294,18 @@ impl Renderer {
       rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
 
       for (i, entity) in world.entities.iter().enumerate() {
-        let sprite_s = if entity.is_player {
+        let sprite_s = if matches!(entity.kind, Kind::Player) {
           &self.sprite_set
         } else {
           &self.goblin_sprite_set
         };
+        if matches!(entity.kind, Kind::Projectile) {
+          rpass.set_bind_group(2, &self.arrow_texture.bind_group, &[]);
+        } else {
+          let texture = sprite_s.resolve(entity.action, entity.facing, entity.anim_tick);
 
-        let texture = sprite_s.resolve(entity.action, entity.facing, entity.anim_tick);
-
-        rpass.set_bind_group(2, &texture.bind_group, &[]);
+          rpass.set_bind_group(2, &texture.bind_group, &[]);
+        }
 
         rpass.draw(0..6, i as u32..i as u32 + 1);
       }

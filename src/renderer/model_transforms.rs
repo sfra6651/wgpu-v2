@@ -54,7 +54,7 @@ impl ModelTransforms {
     let mut instances: Vec<Mat4> = Vec::new();
 
     for entity in entities {
-      instances.push(model_matrix(entity.pos, entity.size));
+      instances.push(model_matrix(entity.pos, entity.render_size));
     }
 
     let data: Vec<[f32; 16]> = instances.iter().map(|m| m.to_cols_array()).collect();
