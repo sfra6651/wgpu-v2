@@ -15,6 +15,7 @@ mod app;
 mod camera;
 mod entity;
 mod entity_manager;
+mod entity_templates;
 mod frame_counter;
 mod player_controller;
 mod renderer;

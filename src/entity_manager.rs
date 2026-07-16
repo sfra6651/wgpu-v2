@@ -1,8 +1,9 @@
 use glam::Vec2;
 
-use crate::entity::{AiType, Facing, Kind};
+use crate::entity::{Action, AiType, Facing, Kind};
 
 pub const MAX_ENTITIES: usize = 1000;
+const EMPTY_ENTITY: usize = usize::MAX;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Entity {
@@ -38,9 +39,9 @@ impl EntityStore {
     } else {
       id = self.slots_used;
       generation = 0;
+      self.slots_used += 1;
     }
 
-    self.slots_used += 1;
     Entity { id, generation }
   }
 
@@ -57,8 +58,6 @@ pub struct SparseElement {
   pub dense_index: usize,
   pub generation: u32,
 }
-
-const EMPTY_ENTITY: usize = usize::MAX;
 
 pub struct ComponentStore<T> {
   dense: Vec<T>,
@@ -94,6 +93,18 @@ impl<T> ComponentStore<T> {
     self.dense.get(dense_index)
   }
 
+  pub fn get_mut(&mut self, e: Entity) -> Option<&mut T> {
+    let dense_index = self.sparse[e.id as usize];
+    if dense_index == EMPTY_ENTITY {
+      return None;
+    }
+    let store_e = self.entities[dense_index];
+    if store_e != e {
+      return None;
+    }
+    self.dense.get_mut(dense_index)
+  }
+
   pub fn remove(&mut self, e: Entity) {
     let dense_index = self.sparse[e.id as usize];
     if dense_index == EMPTY_ENTITY {
@@ -115,67 +126,87 @@ impl<T> ComponentStore<T> {
   }
 }
 
-pub struct EntityManager {
-  entities: EntityStore,
-  pub positions: ComponentStore<Vec2>,
-  pub render_sizes: ComponentStore<Vec2>,
-  pub hit_boxes: ComponentStore<Vec2>,
-  pub dir_intents: ComponentStore<Vec2>,
-  pub speeds: ComponentStore<f32>,
-  pub anim_ticks: ComponentStore<usize>,
-  pub facings: ComponentStore<Facing>,
-  pub kinds: ComponentStore<Kind>,
-  pub ai: ComponentStore<AiType>,
+// this *generates* struct EntityManager, new(), create(), remove(), and all the Component impls
+macro_rules! components {
+  ($($field:ident: $comp:ty),+ $(,)?) => {
+    pub struct EntityManager {
+      entities: EntityStore,
+      $(pub $field: ComponentStore<$comp>,)+
+    }
+
+    impl EntityManager {
+      pub fn new() -> Self {
+        Self {
+          entities: EntityStore::new(),
+          $($field: ComponentStore::new(),)+
+        }
+      }
+
+      pub fn create(&mut self) -> Entity {
+        self.entities.create()
+      }
+
+      pub fn remove(&mut self, e: Entity) {
+        self.entities.remove(e);
+        $(self.$field.remove(e);)+
+      }
+    }
+
+    $(
+      impl Component for $comp {
+        fn store(em: &EntityManager) -> &ComponentStore<Self> { &em.$field }
+        fn store_mut(em: &mut EntityManager) -> &mut ComponentStore<Self> { &mut em.$field }
+      }
+    )+
+  };
+}
+
+// this is not the source of truth for enitites, these are only wrappers for basic types so that we can attatch the Component Traid to them,
+// without this we could not distinquist a Position Vec2 from a RenderSize Vec2 at the type level in the store
+pub struct Position(pub Vec2);
+pub struct RenderSize(pub Vec2);
+pub struct HitBox(pub Vec2);
+pub struct DirIntent(pub Vec2);
+pub struct Speed(pub f32);
+pub struct AnimTick(pub usize);
+pub struct LastShotAt(pub usize);
+
+pub trait Component: Sized {
+  fn store(em: &EntityManager) -> &ComponentStore<Self>;
+  fn store_mut(em: &mut EntityManager) -> &mut ComponentStore<Self>;
+}
+
+// this is the SOURCE OF TRUTH for components as every component here gets the Component trait implemented
+// thanks to the macro expansion
+components! {
+  positions: Position,
+  render_sizes: RenderSize,
+  hit_boxes: HitBox,
+  dir_intents: DirIntent,
+  speeds: Speed,
+  anim_ticks: AnimTick,
+  facings: Facing,
+  kinds: Kind,
+  ai: AiType,
+  last_shot_at: LastShotAt,
+  actions: Action,
 }
 
 impl EntityManager {
-  pub fn new() -> Self {
-    Self {
-      entities: EntityStore::new(),
-      positions: ComponentStore::new(),
-      render_sizes: ComponentStore::new(),
-      hit_boxes: ComponentStore::new(),
-      dir_intents: ComponentStore::new(),
-      speeds: ComponentStore::new(),
-      anim_ticks: ComponentStore::new(),
-      facings: ComponentStore::new(),
-      kinds: ComponentStore::new(),
-      ai: ComponentStore::new(),
-    }
-  }
-  pub fn create(&mut self) -> Entity {
-    self.entities.create()
+  pub fn attach<C: Component>(&mut self, e: Entity, component: C) {
+    C::store_mut(self).insert(component, e);
   }
 
-  pub fn remove(&mut self, e: Entity) {
-    let EntityManager {
-      entities,
-      positions,
-      render_sizes,
-      hit_boxes,
-      dir_intents,
-      speeds,
-      anim_ticks,
-      facings,
-      kinds,
-      ai,
-    } = self;
+  pub fn get<C: Component>(&self, e: Entity) -> Option<&C> {
+    C::store(self).get(e)
+  }
 
-    positions.remove(e);
-    entities.remove(e);
-    render_sizes.remove(e);
-    hit_boxes.remove(e);
-    dir_intents.remove(e);
-    speeds.remove(e);
-    anim_ticks.remove(e);
-    facings.remove(e);
-    kinds.remove(e);
-    ai.remove(e);
+  pub fn get_mut<C: Component>(&mut self, e: Entity) -> Option<&mut C> {
+    C::store_mut(self).get_mut(e)
   }
 }
 
 // --------------tests--------------
-
 #[test]
 fn entity_store() {
   let mut store = EntityStore::new();

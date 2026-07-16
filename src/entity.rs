@@ -58,8 +58,6 @@ pub struct Entity {
   pub action: Action,
   pub kind: Kind,
   pub ai: AiType,
-  pub hp: f32,
-  pub dmg: f32,
 }
 
 impl Entity {
@@ -78,8 +76,6 @@ impl Entity {
       action: Action::Idle,
       kind: Kind::Dummy,
       ai: AiType::None,
-      hp: 1.0,
-      dmg: 0.0,
     }
   }
 
@@ -113,7 +109,6 @@ impl Entity {
       dir_intent: (1.0, 0.0).into(),
       speed: 0.1,
       kind: Kind::Projectile,
-      dmg: 1.0,
       ..Entity::default()
     }
   }

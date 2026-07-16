@@ -3,6 +3,7 @@ use glam::Vec2;
 use crate::{
   camera::Camera,
   entity::{Action, Entity, Facing, Kind, PlayerState},
+  entity_manager::EntityManager,
   player_controller::{self, InputState},
   spatial_grid::SpatialGrid,
 };
@@ -40,6 +41,7 @@ impl Correction {
 
 pub struct World {
   pub entities: Vec<Entity>,
+  pub entity_manager: EntityManager,
   pub player_state: PlayerState,
   pub spatial_grid: SpatialGrid,
   pub camera: Camera,
@@ -67,6 +69,7 @@ impl World {
       size: (WIDTH, HEIGHT).into(),
       spatial_grid,
       position_corrections: Vec::new(),
+      entity_manager: EntityManager::new(),
     }
   }
 
