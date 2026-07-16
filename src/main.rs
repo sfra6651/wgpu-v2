@@ -14,6 +14,7 @@ use crate::world::World;
 mod app;
 mod camera;
 mod entity;
+mod entity_manager;
 mod frame_counter;
 mod player_controller;
 mod renderer;

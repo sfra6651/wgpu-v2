@@ -11,10 +11,10 @@ pub struct CharacterSpriteSet {
 impl CharacterSpriteSet {
   pub fn resolve(&self, action: Action, facing: Facing, tick: usize) -> &Texture {
     match action {
-      Action::Idle => &self.idle[facing.to_i()],
+      Action::Idle => &self.idle[facing.usize()],
       Action::Run => {
         let frame = (tick / Entity::TICKS_PER_FRAME) % Entity::WALK_FRAMES;
-        &self.run[facing.to_i()][frame]
+        &self.run[facing.usize()][frame]
       }
     }
   }

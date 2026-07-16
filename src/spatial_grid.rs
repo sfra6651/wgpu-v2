@@ -2,7 +2,7 @@ use glam::Vec2;
 
 use crate::{
   entity::Entity,
-  world::{self, World},
+  world::{self},
 };
 
 pub struct SpatialGrid {

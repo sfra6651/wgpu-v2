@@ -21,13 +21,14 @@ pub enum Facing {
 }
 
 impl Facing {
-  pub fn to_i(&self) -> usize {
+  pub fn usize(&self) -> usize {
     *self as usize
   }
 }
 
 #[derive(Copy, Clone)]
 pub enum AiType {
+  None,
   Goblin,
 }
 
@@ -40,22 +41,25 @@ pub struct PlayerState {
 #[derive(Copy, Clone)]
 pub enum Kind {
   Player,
-  Enemy { ai: AiType },
+  Enemy,
   Projectile,
   Dummy,
 }
 
+#[derive(Copy, Clone)]
 pub struct Entity {
   pub pos: Vec2,
   pub render_size: Vec2,
   pub hb: Vec2,
   pub dir_intent: Vec2,
-  pub velocity: Vec2,
   pub speed: f32,
   pub anim_tick: usize,
   pub facing: Facing,
   pub action: Action,
   pub kind: Kind,
+  pub ai: AiType,
+  pub hp: f32,
+  pub dmg: f32,
 }
 
 impl Entity {
@@ -68,12 +72,14 @@ impl Entity {
       render_size: (1.0, 1.0).into(),
       hb: (1.0, 1.0).into(),
       dir_intent: (0.0, 0.0).into(),
-      velocity: (0.0, 0.0).into(),
       speed: 0.1,
       anim_tick: 0,
       facing: Facing::S,
       action: Action::Idle,
       kind: Kind::Dummy,
+      ai: AiType::None,
+      hp: 1.0,
+      dmg: 0.0,
     }
   }
 
@@ -93,7 +99,8 @@ impl Entity {
       render_size: (2.0, 2.0).into(),
       hb: (0.5, 0.5).into(),
       speed: 0.05,
-      kind: Kind::Enemy { ai: AiType::Goblin },
+      kind: Kind::Enemy,
+      ai: AiType::Goblin,
       ..Entity::default()
     }
   }
@@ -103,16 +110,26 @@ impl Entity {
       pos,
       render_size: (0.5, 0.5).into(),
       hb: (0.5, 0.2).into(),
-      velocity: (1.0, 0.0).into(),
+      dir_intent: (1.0, 0.0).into(),
       speed: 0.1,
       kind: Kind::Projectile,
+      dmg: 1.0,
       ..Entity::default()
     }
   }
 
-  pub fn intersects(&self, other: &Entity) -> bool {
-    let delta = (self.pos - other.pos).abs();
-    let reach = (self.hb + other.hb) / 2.0;
-    delta.x < reach.x && delta.y < reach.y
+  /// Minimum translation vector: the smallest push that moves `self` out of
+  /// `other`, or None if the boxes don't overlap. Always along a single axis.
+  pub fn penetration(&self, other: &Entity) -> Option<Vec2> {
+    let delta = self.pos - other.pos;
+    let overlap = (self.hb + other.hb) / 2.0 - delta.abs();
+    if overlap.x <= 0.0 || overlap.y <= 0.0 {
+      return None;
+    }
+    if overlap.x < overlap.y {
+      Some(Vec2::new(overlap.x.copysign(delta.x), 0.0))
+    } else {
+      Some(Vec2::new(0.0, overlap.y.copysign(delta.y)))
+    }
   }
 }

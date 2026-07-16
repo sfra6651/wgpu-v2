@@ -11,7 +11,7 @@ pub const WIDTH: f32 = 30.0;
 pub const HEIGHT: f32 = 30.0;
 
 pub enum CollisionResponse {
-  Bock,
+  Block,
   Push,
   Trigger,
   Ignore,
@@ -20,10 +20,21 @@ pub enum CollisionResponse {
 fn collision_response(a: &Kind, b: &Kind) -> CollisionResponse {
   use Kind::*;
   match (a, b) {
-    (Player, Enemy { .. }) | (Enemy { .. }, Player) => CollisionResponse::Push,
-    (Enemy { .. }, Enemy { .. }) => CollisionResponse::Push,
-    (Projectile, Enemy { .. }) | (Enemy { .. }, Projectile) => CollisionResponse::Trigger,
+    (Player, Enemy) | (Enemy, Player) => CollisionResponse::Push,
+    (Enemy, Enemy) => CollisionResponse::Push,
+    (Projectile, Enemy) | (Enemy, Projectile) => CollisionResponse::Trigger,
     _ => CollisionResponse::Ignore,
+  }
+}
+
+pub struct Correction {
+  index: usize,
+  correction: Vec2,
+}
+
+impl Correction {
+  pub fn new(index: usize, correction: Vec2) -> Self {
+    Correction { index, correction }
   }
 }
 
@@ -33,6 +44,7 @@ pub struct World {
   pub spatial_grid: SpatialGrid,
   pub camera: Camera,
   pub size: Vec2,
+  position_corrections: Vec<Correction>,
 }
 
 impl World {
@@ -54,28 +66,60 @@ impl World {
       camera: Camera::new((WIDTH, HEIGHT).into()),
       size: (WIDTH, HEIGHT).into(),
       spatial_grid,
+      position_corrections: Vec::new(),
     }
   }
 
   pub fn update(&mut self, input: &InputState) {
-    self.re_build_spatial_grid();
     self.update_ai();
-    if let Some(player) = self
-      .entities
-      .iter_mut()
-      .find(|e| matches!(e.kind, Kind::Player))
-    {
-      player.dir_intent = player_controller::player_intent(input);
-    }
+    self.update_player_state(input);
     self.update_positions();
+    // re-build after positions update
+    self.re_build_spatial_grid();
     self.update_animations();
     self.handle_collisions();
 
     self.shoot_arrows();
 
+    // update camera
     let player = self.entities.first().unwrap();
-    self.camera.velocity = player.velocity;
+    self.camera.velocity = player.dir_intent * player.speed;
     self.camera.pos = player.pos;
+  }
+
+  fn handle_collisions(&mut self) {
+    // clear corrections
+    self.position_corrections.clear();
+    // step 1: build collections
+    for i in 0..self.entities.len() {
+      let e = &self.entities[i];
+      let near = self.spatial_grid.near_entities(e.pos);
+      for &n in near.iter() {
+        if n == i {
+          continue;
+        }
+        let other = &self.entities[n];
+        let Some(mtv) = e.penetration(other) else {
+          continue;
+        };
+
+        match collision_response(&e.kind, &other.kind) {
+          // full push-out; `other` is treated as immovable
+          CollisionResponse::Block => self.position_corrections.push(Correction::new(i, mtv)),
+          // each pair is visited from both sides, so each entity
+          // takes half the separation
+          CollisionResponse::Push => self
+            .position_corrections
+            .push(Correction::new(i, mtv / 2.0)),
+          CollisionResponse::Ignore => {}
+          CollisionResponse::Trigger => {}
+        }
+      }
+    }
+    //step 2: resolve corrections
+    for e in self.position_corrections.iter() {
+      self.entities[e.index].pos += e.correction;
+    }
   }
 
   fn shoot_arrows(&mut self) {
@@ -103,6 +147,16 @@ impl World {
     }
   }
 
+  fn update_player_state(&mut self, input: &InputState) {
+    if let Some(player) = self
+      .entities
+      .iter_mut()
+      .find(|e| matches!(e.kind, Kind::Player))
+    {
+      player.dir_intent = player_controller::player_intent(input);
+    }
+  }
+
   fn update_ai(&mut self) {
     use crate::entity::AiType::*;
     let player_pos = self
@@ -113,10 +167,7 @@ impl World {
       .pos;
 
     for entity in self.entities.iter_mut() {
-      let Kind::Enemy { ai } = entity.kind else {
-        continue;
-      };
-      match ai {
+      match entity.ai {
         Goblin => {
           if entity.pos.x > player_pos.x {
             entity.dir_intent.x = -1.0
@@ -131,11 +182,10 @@ impl World {
             entity.dir_intent.y = 1.0
           }
         }
+        None => {}
       }
     }
   }
-
-  fn handle_collisions(&mut self) {}
 
   fn update_positions(&mut self) {
     for i in 0..self.entities.len() {
@@ -143,7 +193,6 @@ impl World {
       let speed = self.entities[i].speed;
 
       let vel = dir * speed;
-      self.entities[i].velocity = vel;
       self.entities[i].pos += vel;
       // update facing, if velocity is (0,0) keep old facing
       if dir != Vec2::ZERO {
@@ -154,7 +203,7 @@ impl World {
 
   fn update_animations(&mut self) {
     for i in 0..self.entities.len() {
-      let vel = self.entities[i].velocity;
+      let vel = self.entities[i].dir_intent * self.entities[i].speed;
       if vel != Vec2::ZERO {
         self.entities[i].anim_tick += 1;
       } else {
