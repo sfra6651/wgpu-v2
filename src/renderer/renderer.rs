@@ -135,7 +135,7 @@ impl Renderer {
           Some(
             &self
               .sprite_set
-              .resolve(Action::Idle, Facing::S, 0)
+              .resolve_raw(Action::Idle, Facing::S, 0)
               .bind_group_layout,
           ),
         ],
@@ -210,7 +210,7 @@ impl Renderer {
   pub fn render(&mut self, window: &Window, world: &World) {
     self
       .model_transforms
-      .write_transforms(&self.queue, &world.entities);
+      .write_transforms(&self.queue, &world.em);
 
     let Some(texture_pipeline) = &self.pipelines[PipelineType::Texture as usize] else {
       return;
@@ -293,21 +293,32 @@ impl Renderer {
       );
       rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
 
-      for (i, entity) in world.entities.iter().enumerate() {
-        let sprite_s = if matches!(entity.kind, Kind::Player) {
-          &self.sprite_set
-        } else {
-          &self.goblin_sprite_set
+      let mut i = 0;
+      for (_, &e) in world.em.render_sizes.iter() {
+        let Some(kind) = world.em.kinds.get(e) else {
+          continue;
         };
-        if matches!(entity.kind, Kind::Projectile) {
-          rpass.set_bind_group(2, &self.arrow_texture.bind_group, &[]);
-        } else {
-          let texture = sprite_s.resolve(entity.action, entity.facing, entity.anim_tick);
 
-          rpass.set_bind_group(2, &texture.bind_group, &[]);
+        if let Some(bind_group) = match kind {
+          Kind::Player => self
+            .sprite_set
+            .resolve(&world.em, e)
+            .as_ref()
+            .map(|sprite_set| &sprite_set.bind_group),
+          Kind::Enemy => self
+            .goblin_sprite_set
+            .resolve(&world.em, e)
+            .as_ref()
+            .map(|sprite_set| &sprite_set.bind_group),
+          Kind::Projectile => Some(&self.arrow_texture.bind_group),
+          _ => None,
+        } {
+          rpass.set_bind_group(2, bind_group, &[]);
         }
 
         rpass.draw(0..6, i as u32..i as u32 + 1);
+
+        i += 1;
       }
 
       //rpass.draw(0..6, 0..self.model_transforms.count as u32)

@@ -1,9 +1,9 @@
 use glam::{Vec2, vec2};
 
 use crate::{
-  entity::{Action, AiType, Facing, Kind},
-  entity_manager::{
-    AnimTick, DirIntent, Entity, EntityManager, HitBox, LastShotAt, Position, RenderSize, Speed,
+  entity::{
+    Action, AiType, AnimTick, DirIntent, Entity, EntityManager, Facing, HitBox, Kind, LastShotAt,
+    Position, RenderSize, Speed,
   },
   world,
 };
@@ -44,7 +44,7 @@ pub fn arrow(em: &mut EntityManager, pos: Vec2) -> Entity {
   em.attach(e, RenderSize(vec2(0.5, 0.5)));
   em.attach(e, HitBox(vec2(0.5, 0.2)));
   em.attach(e, DirIntent(vec2(1.0, 0.0)));
-  em.attach(e, Speed(0.1));
+  em.attach(e, Speed(0.2));
   em.attach(e, Kind::Projectile);
   e
 }

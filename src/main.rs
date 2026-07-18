@@ -11,10 +11,14 @@ use crate::player_controller::InputState;
 use crate::renderer::renderer::Renderer;
 use crate::world::World;
 
-mod app;
+//game systems
+mod ai_system;
+mod animation_system;
+mod collision_system;
+mod movement_system;
+//other
 mod camera;
 mod entity;
-mod entity_manager;
 mod entity_templates;
 mod frame_counter;
 mod player_controller;
@@ -31,7 +35,6 @@ struct App {
   frame_counter: FrameCounter,
   renderer: Option<Renderer>,
   world: Option<World>,
-  bevy_world: Option<bevy_ecs::world::World>,
   last_update: Option<Instant>,
   accumulator: f32,
   input_state: InputState,
@@ -40,7 +43,6 @@ struct App {
 impl App {
   fn init(&mut self, window: Arc<Window>) {
     self.world = Some(World::new());
-    self.bevy_world = Some(bevy_ecs::world::World::default());
     self.renderer = Some(pollster::block_on(Renderer::new(window)));
     self.renderer.as_mut().unwrap().create_pipelines();
 

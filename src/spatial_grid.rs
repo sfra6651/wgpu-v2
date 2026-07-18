@@ -1,7 +1,7 @@
 use glam::Vec2;
 
 use crate::{
-  entity::Entity,
+  entity::{Entity, EntityManager, Position},
   world::{self},
 };
 
@@ -9,16 +9,16 @@ pub struct SpatialGrid {
   cell_size: f32,
   rows: usize,
   cols: usize,
-  cells: Vec<Vec<usize>>,
+  cells: Vec<Vec<Entity>>,
   //needs to be cleared every iteration so we dont have to create a vec in a hot loop
-  near_list: Vec<usize>,
+  near_list: Vec<Entity>,
 }
 
 impl SpatialGrid {
   pub fn new(cell_size: f32) -> Self {
     let rows = (world::HEIGHT / cell_size).ceil() as usize;
     let cols = (world::WIDTH / cell_size).ceil() as usize;
-    let mut cells: Vec<Vec<usize>> = Vec::new();
+    let mut cells: Vec<Vec<Entity>> = Vec::new();
     for _ in 0..rows * cols {
       cells.push(Vec::new());
     }
@@ -49,13 +49,16 @@ impl SpatialGrid {
     row * self.cols + col
   }
 
-  pub fn insert(&mut self, e: &Entity, e_idx: usize) {
-    let (row, col) = self.cell_at(e.pos);
+  pub fn insert(&mut self, em: &EntityManager, e: Entity) {
+    let Some(&Position(pos)) = em.positions.get(e) else {
+      return;
+    };
+    let (row, col) = self.cell_at(pos);
     let i = self.cell_index(row, col);
-    self.cells[i].push(e_idx);
+    self.cells[i].push(e);
   }
 
-  pub fn near_entities(&mut self, pos: Vec2) -> &Vec<usize> {
+  pub fn near_entities(&mut self, pos: Vec2) -> &Vec<Entity> {
     //clear the near_list, its only valid for one call
     self.near_list.clear();
 

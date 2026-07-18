@@ -1,5 +1,5 @@
 use crate::{
-  entity::{Action, Entity, Facing},
+  entity::{self, Action, AnimTick, Entity, EntityManager, Facing},
   renderer::texture::Texture,
 };
 
@@ -9,11 +9,30 @@ pub struct CharacterSpriteSet {
 }
 
 impl CharacterSpriteSet {
-  pub fn resolve(&self, action: Action, facing: Facing, tick: usize) -> &Texture {
+  pub fn resolve(&self, em: &EntityManager, e: Entity) -> Option<&Texture> {
+    let Some(&facing) = em.facings.get(e) else {
+      return None;
+    };
+    let Some(&action) = em.actions.get(e) else {
+      return None;
+    };
+    let Some(&AnimTick(anim_tick)) = em.anim_ticks.get(e) else {
+      return None;
+    };
+    match action {
+      Action::Idle => Some(&self.idle[facing.usize()]),
+      Action::Run => {
+        let frame = (anim_tick / entity::TICKS_PER_FRAME) % entity::WALK_FRAMES;
+        Some(&self.run[facing.usize()][frame])
+      }
+    }
+  }
+
+  pub fn resolve_raw(&self, action: Action, facing: Facing, tick: usize) -> &Texture {
     match action {
       Action::Idle => &self.idle[facing.usize()],
       Action::Run => {
-        let frame = (tick / Entity::TICKS_PER_FRAME) % Entity::WALK_FRAMES;
+        let frame = (tick / entity::TICKS_PER_FRAME) % entity::WALK_FRAMES;
         &self.run[facing.usize()][frame]
       }
     }

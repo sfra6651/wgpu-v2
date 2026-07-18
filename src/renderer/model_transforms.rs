@@ -1,6 +1,9 @@
 use glam::Mat4;
 
-use crate::{entity::Entity, utils::model_matrix};
+use crate::{
+  entity::{EntityManager, Position, RenderSize},
+  utils::model_matrix,
+};
 
 pub struct ModelTransforms {
   pub buffer: wgpu::Buffer,
@@ -50,11 +53,14 @@ impl ModelTransforms {
       count: 0,
     }
   }
-  pub fn write_transforms(&mut self, queue: &wgpu::Queue, entities: &Vec<Entity>) {
+  pub fn write_transforms(&mut self, queue: &wgpu::Queue, em: &EntityManager) {
     let mut instances: Vec<Mat4> = Vec::new();
 
-    for entity in entities {
-      instances.push(model_matrix(entity.pos, entity.render_size));
+    for (&RenderSize(size), e) in em.render_sizes.iter() {
+      let Some(&Position(pos)) = em.positions.get(*e) else {
+        continue;
+      };
+      instances.push(model_matrix(pos, size));
     }
 
     let data: Vec<[f32; 16]> = instances.iter().map(|m| m.to_cols_array()).collect();
