@@ -12,11 +12,8 @@ use crate::renderer::Renderer;
 use crate::world::World;
 
 //game systems
-mod ai_system;
-mod animation_system;
-mod collision_system;
-mod movement_system;
-//other
+mod systems;
+//
 mod camera;
 mod entity;
 mod entity_templates;
@@ -73,7 +70,6 @@ impl ApplicationHandler for App {
   fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
     match event {
       WindowEvent::CloseRequested => {
-        println!("The close button was pressed; stopping");
         event_loop.exit();
       }
       WindowEvent::RedrawRequested => {

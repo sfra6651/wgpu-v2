@@ -1,6 +1,8 @@
 use glam::Vec2;
 
-use crate::entity::{ComponentStore, DirIntent, Entity, EntityManager, Facing, Position, Speed};
+use crate::entity::{
+  ComponentStore, DirIntent, Entity, EntityManager, Facing, Position, Speed, SpeedOveride,
+};
 
 pub fn update_positions(em: &mut EntityManager) {
   for (DirIntent(dir), e) in em.dir_intents.iter() {
@@ -8,7 +10,12 @@ pub fn update_positions(em: &mut EntityManager) {
       continue;
     };
 
-    let vel = dir * speed;
+    let mut speed_actual = *speed;
+    if let Some(SpeedOveride(Some(spd_ovr))) = em.speed_overides.get(*e) {
+      speed_actual = *spd_ovr;
+    }
+
+    let vel = dir * speed_actual;
     let Some(Position(pos)) = em.positions.get_mut(*e) else {
       continue;
     };

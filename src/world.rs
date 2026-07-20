@@ -1,14 +1,21 @@
+use std::time::Instant;
+
 use glam::{Vec2, vec2};
+use winit::keyboard::KeyCode;
 
 use crate::{
-  ai_system, animation_system,
   camera::Camera,
-  collision_system::{self, Correction},
   entity::{DirIntent, Entity, EntityManager, LastShotAt, Position, Speed},
   entity_templates::{arrow, goblin, player},
-  movement_system::{self},
   player_controller::{self, InputState},
   spatial_grid::SpatialGrid,
+  systems::{
+    ability_system, ai_system, animation_system,
+    collision_system::{self, Correction},
+    enemy_spawn_system::spawn_enmies,
+    lifetime_system::handle_lifetimes,
+    movement_system,
+  },
 };
 
 pub const WIDTH: f32 = 30.0;
@@ -22,15 +29,13 @@ pub struct World {
   pub size: Vec2,
   pub position_corrections: Vec<Correction>,
   pub removals: Vec<Entity>,
+  pub last_spawn: Instant,
 }
 
 impl World {
   pub fn new() -> Self {
     let mut em = EntityManager::new();
     let player = player(&mut em);
-    let _ = goblin(&mut em, vec2(15.0, 20.0));
-    let _ = goblin(&mut em, vec2(10.0, 10.0));
-    let _ = goblin(&mut em, vec2(20.0, 20.0));
 
     Self {
       em,
@@ -40,16 +45,16 @@ impl World {
       spatial_grid: SpatialGrid::new(2.0),
       position_corrections: Vec::new(),
       removals: Vec::new(),
+      last_spawn: Instant::now(),
     }
   }
 
   pub fn update(&mut self, input: &InputState) {
     self.removals.clear();
-    //ai_system::update_ai(&mut self.em, self.player);
-    // update plater sate
-    if let Some(DirIntent(dir)) = self.em.dir_intents.get_mut(self.player) {
-      *dir = player_controller::player_intent(input);
-    };
+    handle_lifetimes(&mut self.em, &mut self.removals);
+    ai_system::update_ai(&mut self.em, self.player);
+    self.update_player(input);
+
     movement_system::update_positions(&mut self.em);
     //// re-build after positions update
     self.re_build_spatial_grid();
@@ -57,7 +62,7 @@ impl World {
     collision_system::handle_collisions(self);
     self.handle_removals();
 
-    //self.shoot_arrows();
+    self.shoot_arrows();
 
     // update camera
     let Some(&DirIntent(dir_intent)) = self.em.dir_intents.get(self.player) else {
@@ -70,6 +75,12 @@ impl World {
     if let Some(&Position(pos)) = self.em.positions.get(self.player) {
       self.camera.pos = pos;
     }
+
+    let elapsed = self.last_spawn.elapsed().as_secs_f32();
+    if elapsed >= 1.0 {
+      spawn_enmies(&mut self.em);
+      self.last_spawn = Instant::now();
+    };
   }
 
   fn handle_removals(&mut self) {
@@ -81,6 +92,16 @@ impl World {
       }
       self.em.remove(self.removals[i]);
     }
+  }
+
+  pub fn update_player(&mut self, input: &InputState) {
+    if let Some(DirIntent(dir)) = self.em.dir_intents.get_mut(self.player) {
+      *dir = player_controller::player_dir_intent(input);
+
+      if input.is_down(KeyCode::Space) {
+        ability_system::begin_dash(&mut self.em, self.player);
+      }
+    };
   }
 
   fn shoot_arrows(&mut self) {

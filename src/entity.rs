@@ -5,6 +5,8 @@ use std::{
 
 use glam::Vec2;
 
+use crate::{systems::ability_system::Ability, world::World};
+
 pub const TICKS_PER_FRAME: usize = 8;
 pub const WALK_FRAMES: usize = 4;
 
@@ -222,24 +224,43 @@ macro_rules! components {
 // without this we could not distinquist a Position Vec2 from a RenderSize Vec2 at the type level in the store
 #[derive(Clone, Copy)]
 pub struct Position(pub Vec2);
+
 #[derive(Clone, Copy)]
 pub struct RenderSize(pub Vec2);
+
 #[derive(Clone, Copy)]
 pub struct HitBox(pub Vec2);
+
 #[derive(Clone, Copy)]
 pub struct DirIntent(pub Vec2);
+
 #[derive(Clone, Copy)]
 pub struct Speed(pub f32);
+
+#[derive(Clone, Copy)]
+pub struct SpeedOveride(pub Option<f32>);
+
 #[derive(Clone, Copy)]
 pub struct AnimTick(pub usize);
+
 #[derive(Clone, Copy)]
 pub struct LastShotAt(pub usize);
+
 #[derive(Clone, Copy)]
 pub struct Damage(pub f32);
+
 #[derive(Clone, Copy)]
 pub struct Health(pub f32);
+
 #[derive(Clone, Copy)]
 pub struct LifeTime(pub f32);
+
+#[derive(Clone, Copy)]
+pub struct Parent(pub Entity);
+
+#[derive(Clone, Copy)]
+pub struct OnDestroy(pub fn(&mut EntityManager, Entity));
+
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Layer {
@@ -260,6 +281,7 @@ components! {
   hit_boxes: HitBox,
   dir_intents: DirIntent,
   speeds: Speed,
+  speed_overides: SpeedOveride,
   anim_ticks: AnimTick,
   facings: Facing,
   kinds: Kind,
@@ -269,8 +291,10 @@ components! {
   damages: Damage,
   healths: Health,
   layers: Layer,
-  parent: Entity,
-  lifetimes: LifeTime
+  parents: Parent,
+  lifetimes: LifeTime,
+  abilities: Ability,
+  on_destroys: OnDestroy,
 }
 
 impl EntityManager {

@@ -1,7 +1,7 @@
 use glam::{Vec2, vec2};
 
 use crate::{
-  entity::{ComponentStore, Damage, Entity, EntityManager, Health, HitBox, Kind, Position},
+  entity::{Damage, Entity, EntityManager, Health, HitBox, Kind, Position},
   world::World,
 };
 

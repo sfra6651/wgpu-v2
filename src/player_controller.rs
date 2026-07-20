@@ -27,7 +27,7 @@ impl InputState {
   }
 }
 
-pub fn player_intent(input: &InputState) -> Vec2 {
+pub fn player_dir_intent(input: &InputState) -> Vec2 {
   let mut dir = Vec2::ZERO;
   if input.is_down(KeyCode::KeyW) {
     dir.y += 1.0

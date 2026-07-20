@@ -268,7 +268,7 @@ impl Renderer {
         return;
       }
       other => {
-        println!("{:?}", other);
+        eprintln!("{:?}", other);
         panic!("failed to get surface texture for frame")
       }
     };

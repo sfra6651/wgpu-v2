@@ -5,6 +5,7 @@ use crate::{
     Action, AiType, AnimTick, Damage, DirIntent, Entity, EntityManager, Facing, Health, HitBox,
     Kind, LastShotAt, Layer, Position, RenderSize, Speed,
   },
+  systems::ability_system::{Ability, AbilityName},
   world,
 };
 
@@ -21,6 +22,14 @@ pub fn player(em: &mut EntityManager) -> Entity {
   em.attach(e, Kind::Player);
   em.attach(e, LastShotAt(0));
   em.attach(e, Layer::WorldSpace);
+  em.attach(
+    e,
+    Ability {
+      cd: 60.0,
+      remaing_cd: 0.0,
+      name: AbilityName::Dash,
+    },
+  );
   e
 }
 
