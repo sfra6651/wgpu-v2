@@ -5,12 +5,12 @@ use std::{
 
 use glam::Vec2;
 
-use crate::{systems::ability_system::Ability, world::World};
+use crate::systems::ability_system::Ability;
 
 pub const TICKS_PER_FRAME: usize = 8;
 pub const WALK_FRAMES: usize = 4;
 
-pub const MAX_ENTITIES: usize = 1000;
+pub const MAX_ENTITIES: usize = 10000;
 const EMPTY_ENTITY: usize = usize::MAX;
 
 #[derive(Copy, Clone)]
@@ -300,5 +300,9 @@ components! {
 impl EntityManager {
   pub fn attach<C: Component>(&mut self, e: Entity, component: C) {
     C::store_mut(self).insert(component, e);
+  }
+
+  pub fn slots_used(&self) -> u32 {
+    self.entities.slots_used
   }
 }

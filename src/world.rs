@@ -22,7 +22,7 @@ pub const WIDTH: f32 = 30.0;
 pub const HEIGHT: f32 = 30.0;
 
 pub struct World {
-  pub em: EntityManager,
+  pub em: Box<EntityManager>,
   pub player: Entity,
   pub spatial_grid: SpatialGrid,
   pub camera: Camera,
@@ -30,11 +30,12 @@ pub struct World {
   pub position_corrections: Vec<Correction>,
   pub removals: Vec<Entity>,
   pub last_spawn: Instant,
+  pub tmp_spawned: bool,
 }
 
 impl World {
   pub fn new() -> Self {
-    let mut em = EntityManager::new();
+    let mut em = Box::new(EntityManager::new());
     let player = player(&mut em);
 
     Self {
@@ -46,10 +47,17 @@ impl World {
       position_corrections: Vec::new(),
       removals: Vec::new(),
       last_spawn: Instant::now(),
+      tmp_spawned: false,
     }
   }
 
   pub fn update(&mut self, input: &InputState) {
+    if !self.tmp_spawned {
+      for _ in 0..5000 {
+        spawn_enmies(&mut self.em);
+      }
+      self.tmp_spawned = true;
+    }
     self.removals.clear();
     handle_lifetimes(&mut self.em, &mut self.removals);
     ai_system::update_ai(&mut self.em, self.player);
@@ -76,9 +84,10 @@ impl World {
       self.camera.pos = pos;
     }
 
+    spawn_enmies(&mut self.em);
     let elapsed = self.last_spawn.elapsed().as_secs_f32();
     if elapsed >= 1.0 {
-      spawn_enmies(&mut self.em);
+      println!("entity count {}", self.em.slots_used());
       self.last_spawn = Instant::now();
     };
   }
