@@ -10,7 +10,7 @@ pub struct SpatialGrid {
   rows: usize,
   cols: usize,
   cells: Vec<Vec<Entity>>,
-  //needs to be cleared every iteration so we dont have to create a vec in a hot loop
+  //needs to be cleared every call of near entities. so we dont have to create a vec in a hot loop
   near_list: Vec<Entity>,
 }
 
@@ -75,5 +75,61 @@ impl SpatialGrid {
     }
 
     &self.near_list
+  }
+
+  pub fn find_nearest(
+    &mut self,
+    em: &EntityManager,
+    e: Entity,
+    search_radius: f32,
+  ) -> Option<Entity> {
+    let search_cells: usize = (search_radius / self.cell_size).ceil() as usize;
+
+    self.near_list.clear();
+
+    let &Position(pos) = em.positions.get(e)?;
+
+    let (row, col) = self.cell_at(pos);
+
+    for i in 0..search_cells {
+      let mut found = false;
+      let rows = row.saturating_sub(i)..=(row + i).min(self.rows - 1);
+      let cols = col.saturating_sub(i)..=(col + i).min(self.cols - 1);
+      for r in rows {
+        for c in cols.clone() {
+          let cell_index = self.cell_index(r, c);
+          if self.cells[cell_index].is_empty() || self.cells[cell_index].contains(&e) {
+            continue;
+          }
+          self.near_list.extend_from_slice(&self.cells[cell_index]);
+          found = true;
+        }
+      }
+      if found {
+        break;
+      }
+    }
+
+    if self.near_list.is_empty() {
+      return None;
+    };
+
+    let mut closest = Entity::MAX;
+    let mut closest_distance = f32::MAX;
+    for e_c in self.near_list.iter() {
+      if *e_c == e {
+        continue;
+      }
+      let &Position(pos_n) = em.positions.get(*e_c)?;
+      let dist = pos.distance(pos_n);
+      if dist < closest_distance {
+        closest_distance = dist;
+        closest = *e_c;
+      }
+    }
+    if closest == Entity::MAX {
+      return None;
+    }
+    Some(closest)
   }
 }

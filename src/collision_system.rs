@@ -1,7 +1,7 @@
 use glam::{Vec2, vec2};
 
 use crate::{
-  entity::{Entity, EntityManager, HitBox, Kind, Position},
+  entity::{ComponentStore, Damage, Entity, EntityManager, Health, HitBox, Kind, Position},
   world::World,
 };
 
@@ -20,6 +20,18 @@ pub struct Correction {
 impl Correction {
   pub fn new(e: Entity, correction: Vec2) -> Self {
     Correction { e, correction }
+  }
+}
+
+fn collision_response(a: &Kind, b: &Kind) -> CollisionResponse {
+  use Kind::*;
+  match (a, b) {
+    (Player, Enemy) => CollisionResponse::Push,
+    (Enemy, Player) => CollisionResponse::Push,
+    (Enemy, Enemy) => CollisionResponse::Push,
+    (Projectile, Enemy) => CollisionResponse::Trigger,
+    (Enemy, Projectile) => CollisionResponse::Ignore,
+    _ => CollisionResponse::Ignore,
   }
 }
 
@@ -51,7 +63,19 @@ pub fn handle_collisions(w: &mut World) {
         // takes half the separation
         CollisionResponse::Push => w.position_corrections.push(Correction::new(e, mtv / 2.0)),
         CollisionResponse::Ignore => {}
-        CollisionResponse::Trigger => {}
+        CollisionResponse::Trigger => {
+          let Some(Damage(dmg)) = w.em.damages.get(e) else {
+            continue;
+          };
+          let Some(Health(hp)) = w.em.healths.get_mut(n) else {
+            continue;
+          };
+          *hp -= dmg;
+          w.removals.push(e);
+          if *hp <= 0.0 {
+            w.removals.push(n);
+          }
+        }
       }
     }
   }
@@ -62,17 +86,6 @@ pub fn handle_collisions(w: &mut World) {
       continue;
     };
     *pos += c.correction;
-  }
-}
-
-fn collision_response(a: &Kind, b: &Kind) -> CollisionResponse {
-  use Kind::*;
-  match (a, b) {
-    (Player, Enemy) => CollisionResponse::Push,
-    (Enemy, Player) => CollisionResponse::Push,
-    (Enemy, Enemy) => CollisionResponse::Push,
-    (Projectile, Enemy) | (Enemy, Projectile) => CollisionResponse::Trigger,
-    _ => CollisionResponse::Ignore,
   }
 }
 

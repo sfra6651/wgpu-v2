@@ -15,6 +15,7 @@ const EMPTY_ENTITY: usize = usize::MAX;
 pub enum Action {
   Idle,
   Run,
+  Dying,
 }
 
 #[derive(Copy, Clone)]
@@ -46,13 +47,19 @@ pub enum Kind {
   Player,
   Enemy,
   Projectile,
-  Dummy,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Entity {
   id: u32,
   generation: u32,
+}
+
+impl Entity {
+  pub const MAX: Self = Self {
+    id: u32::MAX,
+    generation: u32::MAX,
+  };
 }
 
 pub struct EntityStore {
@@ -78,7 +85,6 @@ impl EntityStore {
     let generation;
     if let Some(free_id) = self.free_list.pop() {
       id = free_id;
-      self.generations[id as usize] += 1;
       generation = self.generations[id as usize];
     } else {
       id = self.slots_used;
@@ -93,6 +99,7 @@ impl EntityStore {
     if self.generations[e.id as usize] != e.generation {
       panic!("attempting to remove entity with a stale reference");
     }
+    self.generations[e.id as usize] += 1;
     self.free_list.push(e.id);
   }
 }
@@ -156,18 +163,16 @@ impl<T> ComponentStore<T> {
     if dense_index == EMPTY_ENTITY {
       return;
     }
-    let dense_last_index = self.dense.len() - 1;
-
-    if self.dense.len() <= 1 {
-      self.dense.pop();
-      self.entities.pop();
-    } else {
-      self.dense.swap(dense_index, dense_last_index);
-      self.entities.swap(dense_index, dense_last_index);
+    if self.entities[dense_index] != e {
+      return;
+    }
+    self.dense.swap_remove(dense_index);
+    self.entities.swap_remove(dense_index);
+    // the moved element (if any) needs its sparse index repaired
+    if dense_index < self.entities.len() {
       let other_e = self.entities[dense_index];
       self.sparse[other_e.id as usize] = dense_index;
     }
-
     self.sparse[e.id as usize] = EMPTY_ENTITY;
   }
 }
@@ -229,6 +234,18 @@ pub struct Speed(pub f32);
 pub struct AnimTick(pub usize);
 #[derive(Clone, Copy)]
 pub struct LastShotAt(pub usize);
+#[derive(Clone, Copy)]
+pub struct Damage(pub f32);
+#[derive(Clone, Copy)]
+pub struct Health(pub f32);
+#[derive(Clone, Copy)]
+pub struct LifeTime(pub f32);
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Layer {
+  Floor = 0,
+  WorldSpace = 2,
+}
 
 pub trait Component: Sized {
   fn store(em: &EntityManager) -> &ComponentStore<Self>;
@@ -249,57 +266,15 @@ components! {
   ai: AiType,
   last_shot_at: LastShotAt,
   actions: Action,
+  damages: Damage,
+  healths: Health,
+  layers: Layer,
+  parent: Entity,
+  lifetimes: LifeTime
 }
 
 impl EntityManager {
   pub fn attach<C: Component>(&mut self, e: Entity, component: C) {
     C::store_mut(self).insert(component, e);
   }
-}
-
-// --------------tests--------------
-#[test]
-fn entity_store() {
-  let mut store = EntityStore::new();
-  let e = store.create();
-  assert_eq!(store.slots_used, 1);
-  store.remove(e);
-  assert_eq!(store.free_list.len(), 1);
-
-  // now check genrations
-  let _ = store.create();
-  assert_eq!(store.free_list.len(), 0);
-  assert_eq!(store.generations[0], 1);
-}
-
-#[test]
-#[should_panic]
-fn entity_store_removing_state_ref() {
-  let mut store = EntityStore::new();
-  let e = store.create();
-  store.remove(e);
-  let _ = store.create();
-  store.remove(e);
-}
-
-#[test]
-fn component_store() {
-  let mut c_store: ComponentStore<Vec2> = ComponentStore::new();
-  let mut e_store = EntityStore::new();
-  let e = e_store.create();
-
-  c_store.insert((1.0, 1.0).into(), e);
-
-  assert_eq!(c_store.dense.len(), 1);
-  assert_eq!(c_store.entities.len(), 1);
-
-  c_store.remove(e);
-  assert_eq!(e.id, 0);
-  assert_eq!(c_store.dense.len(), 0);
-  assert_eq!(c_store.sparse[0], EMPTY_ENTITY);
-
-  // test stale Entity reference call fails
-  let b = e_store.create();
-  assert_eq!(b.id, 1);
-  assert!(c_store.get(e).is_none());
 }

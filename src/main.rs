@@ -8,7 +8,7 @@ use winit::window::{Fullscreen, Window, WindowId};
 
 use crate::frame_counter::FrameCounter;
 use crate::player_controller::InputState;
-use crate::renderer::renderer::Renderer;
+use crate::renderer::Renderer;
 use crate::world::World;
 
 //game systems

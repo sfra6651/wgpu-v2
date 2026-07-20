@@ -21,6 +21,7 @@ pub struct World {
   pub camera: Camera,
   pub size: Vec2,
   pub position_corrections: Vec<Correction>,
+  pub removals: Vec<Entity>,
 }
 
 impl World {
@@ -38,11 +39,13 @@ impl World {
       size: (WIDTH, HEIGHT).into(),
       spatial_grid: SpatialGrid::new(2.0),
       position_corrections: Vec::new(),
+      removals: Vec::new(),
     }
   }
 
   pub fn update(&mut self, input: &InputState) {
-    ai_system::update_ai(&mut self.em, self.player);
+    self.removals.clear();
+    //ai_system::update_ai(&mut self.em, self.player);
     // update plater sate
     if let Some(DirIntent(dir)) = self.em.dir_intents.get_mut(self.player) {
       *dir = player_controller::player_intent(input);
@@ -52,8 +55,9 @@ impl World {
     self.re_build_spatial_grid();
     animation_system::update_animations(&mut self.em);
     collision_system::handle_collisions(self);
+    self.handle_removals();
 
-    self.shoot_arrows();
+    //self.shoot_arrows();
 
     // update camera
     let Some(&DirIntent(dir_intent)) = self.em.dir_intents.get(self.player) else {
@@ -68,18 +72,38 @@ impl World {
     }
   }
 
+  fn handle_removals(&mut self) {
+    // the same entity can be queued more than once in a frame
+    // (e.g. one arrow overlapping two goblins), so skip duplicates
+    for i in 0..self.removals.len() {
+      if self.removals[..i].contains(&self.removals[i]) {
+        continue;
+      }
+      self.em.remove(self.removals[i]);
+    }
+  }
+
   fn shoot_arrows(&mut self) {
     let Some(&LastShotAt(last_shot_at)) = self.em.last_shot_at.get(self.player) else {
       return;
     };
 
     let mut shot = false;
-    if last_shot_at >= 120 {
+    if last_shot_at >= 60 {
       shot = true;
-      let Some(Position(pos)) = self.em.positions.get_copy(self.player) else {
-        return;
-      };
-      arrow(&mut self.em, pos);
+      if let Some(closest) = self.spatial_grid.find_nearest(&self.em, self.player, 30.0) {
+        let Some(&Position(pos)) = self.em.positions.get(self.player) else {
+          return;
+        };
+        let Some(&Position(pos_c)) = self.em.positions.get(closest) else {
+          return;
+        };
+
+        let dir = (pos_c - pos).normalize_or_zero();
+        if dir != Vec2::ZERO {
+          arrow(&mut self.em, pos, dir);
+        }
+      }
     }
 
     if let Some(LastShotAt(last_shot_at)) = self.em.last_shot_at.get_mut(self.player) {

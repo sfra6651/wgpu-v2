@@ -10,21 +10,17 @@ pub struct CharacterSpriteSet {
 
 impl CharacterSpriteSet {
   pub fn resolve(&self, em: &EntityManager, e: Entity) -> Option<&Texture> {
-    let Some(&facing) = em.facings.get(e) else {
-      return None;
-    };
-    let Some(&action) = em.actions.get(e) else {
-      return None;
-    };
-    let Some(&AnimTick(anim_tick)) = em.anim_ticks.get(e) else {
-      return None;
-    };
+    let &facing = em.facings.get(e)?;
+    let &action = em.actions.get(e)?;
+    let &AnimTick(anim_tick) = em.anim_ticks.get(e)?;
+
     match action {
       Action::Idle => Some(&self.idle[facing.usize()]),
       Action::Run => {
         let frame = (anim_tick / entity::TICKS_PER_FRAME) % entity::WALK_FRAMES;
         Some(&self.run[facing.usize()][frame])
       }
+      _ => self.idle.first(),
     }
   }
 
@@ -35,6 +31,7 @@ impl CharacterSpriteSet {
         let frame = (tick / entity::TICKS_PER_FRAME) % entity::WALK_FRAMES;
         &self.run[facing.usize()][frame]
       }
+      _ => &self.idle[0],
     }
   }
 
