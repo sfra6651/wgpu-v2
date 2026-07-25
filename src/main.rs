@@ -24,7 +24,7 @@ mod spatial_grid;
 mod utils;
 mod world;
 
-const GAME_UPDATES_PER_SEC: f32 = 1.0 / 120.0; // seconds per fixed simulation step (60 Hz)
+const GAME_UPDATES_PER_SEC: f32 = 1.0 / 60.0; // seconds per fixed simulation step (60 Hz)
 
 #[derive(Default)]
 struct App {

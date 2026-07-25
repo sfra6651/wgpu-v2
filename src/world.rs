@@ -1,18 +1,18 @@
 use std::time::Instant;
 
-use glam::{Vec2, vec2};
+use glam::Vec2;
 use winit::keyboard::KeyCode;
 
 use crate::{
   camera::Camera,
-  entity::{DirIntent, Entity, EntityManager, LastShotAt, Position, Speed},
-  entity_templates::{arrow, goblin, player},
+  entity::{DirIntent, Entity, EntityManager, Health, LastShotAt, Position, Speed},
+  entity_templates::{arrow, player},
   player_controller::{self, InputState},
   spatial_grid::SpatialGrid,
   systems::{
     ability_system, ai_system, animation_system,
-    collision_system::{self, Correction},
-    enemy_spawn_system::spawn_enmies,
+    collision_system::{self},
+    enemy_spawn_system::spawn_enemies,
     lifetime_system::handle_lifetimes,
     movement_system,
   },
@@ -21,16 +21,20 @@ use crate::{
 pub const WIDTH: f32 = 30.0;
 pub const HEIGHT: f32 = 30.0;
 
+pub struct PosUpdate {
+  pub e: Entity,
+  pub offset: Vec2,
+}
+
 pub struct World {
   pub em: Box<EntityManager>,
   pub player: Entity,
   pub spatial_grid: SpatialGrid,
   pub camera: Camera,
   pub size: Vec2,
-  pub position_corrections: Vec<Correction>,
+  pub position_updates: Vec<PosUpdate>,
   pub removals: Vec<Entity>,
   pub last_spawn: Instant,
-  pub tmp_spawned: bool,
 }
 
 impl World {
@@ -43,32 +47,32 @@ impl World {
       player,
       camera: Camera::new((WIDTH, HEIGHT).into()),
       size: (WIDTH, HEIGHT).into(),
-      spatial_grid: SpatialGrid::new(2.0),
-      position_corrections: Vec::new(),
-      removals: Vec::new(),
+      spatial_grid: SpatialGrid::new(1.0),
       last_spawn: Instant::now(),
-      tmp_spawned: false,
+      position_updates: Vec::new(),
+      removals: Vec::new(),
     }
   }
 
   pub fn update(&mut self, input: &InputState) {
-    if !self.tmp_spawned {
-      for _ in 0..5000 {
-        spawn_enmies(&mut self.em);
-      }
-      self.tmp_spawned = true;
-    }
     self.removals.clear();
+
     handle_lifetimes(&mut self.em, &mut self.removals);
+
     ai_system::update_ai(&mut self.em, self.player);
     self.update_player(input);
 
+    let t = Instant::now();
     movement_system::update_positions(&mut self.em);
+
     //// re-build after positions update
     self.re_build_spatial_grid();
+
     animation_system::update_animations(&mut self.em);
+
     collision_system::handle_collisions(self);
-    self.handle_removals();
+    self.apply_pos_corrections();
+    self.position_updates.clear();
 
     self.shoot_arrows();
 
@@ -84,12 +88,22 @@ impl World {
       self.camera.pos = pos;
     }
 
-    spawn_enmies(&mut self.em);
     let elapsed = self.last_spawn.elapsed().as_secs_f32();
     if elapsed >= 1.0 {
-      println!("entity count {}", self.em.slots_used());
+      spawn_enemies(&mut self.em, &self.camera);
       self.last_spawn = Instant::now();
-    };
+    }
+
+    // clear removals and entity updates for the next frame
+    self.handle_removals();
+  }
+
+  fn apply_pos_corrections(&mut self) {
+    for u in self.position_updates.iter() {
+      if let Some(Position(pos)) = self.em.positions.get_mut(u.e) {
+        *pos += u.offset;
+      }
+    }
   }
 
   fn handle_removals(&mut self) {

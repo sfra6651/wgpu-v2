@@ -11,7 +11,7 @@ pub const TICKS_PER_FRAME: usize = 8;
 pub const WALK_FRAMES: usize = 4;
 
 pub const MAX_ENTITIES: usize = 10000;
-const EMPTY_ENTITY: usize = usize::MAX;
+pub const EMPTY_ENTITY: usize = usize::MAX;
 
 #[derive(Copy, Clone)]
 pub enum Action {
@@ -53,8 +53,8 @@ pub enum Kind {
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Entity {
-  id: u32,
-  generation: u32,
+  pub id: u32,
+  pub generation: u32,
 }
 
 impl Entity {
@@ -160,6 +160,12 @@ impl<T> ComponentStore<T> {
     self.dense.get_mut(dense_index)
   }
 
+  pub fn clear(&mut self) {
+    self.dense.clear();
+    self.entities.clear();
+    self.sparse = [EMPTY_ENTITY; MAX_ENTITIES];
+  }
+
   pub fn remove(&mut self, e: Entity) {
     let dense_index = self.sparse[e.id as usize];
     if dense_index == EMPTY_ENTITY {
@@ -229,10 +235,13 @@ pub struct Position(pub Vec2);
 pub struct RenderSize(pub Vec2);
 
 #[derive(Clone, Copy)]
-pub struct HitBox(pub Vec2);
+pub struct HitBox(pub f32);
 
 #[derive(Clone, Copy)]
 pub struct DirIntent(pub Vec2);
+
+#[derive(Clone, Copy)]
+pub struct Rotation(pub f32);
 
 #[derive(Clone, Copy)]
 pub struct Speed(pub f32);
@@ -268,6 +277,14 @@ pub enum Layer {
   WorldSpace = 2,
 }
 
+// Entity type tags
+#[derive(Clone, Copy)]
+pub struct Player;
+#[derive(Clone, Copy)]
+pub struct Npc;
+#[derive(Clone, Copy)]
+pub struct Projectile;
+
 pub trait Component: Sized {
   fn store(em: &EntityManager) -> &ComponentStore<Self>;
   fn store_mut(em: &mut EntityManager) -> &mut ComponentStore<Self>;
@@ -280,6 +297,7 @@ components! {
   render_sizes: RenderSize,
   hit_boxes: HitBox,
   dir_intents: DirIntent,
+  rotations: Rotation,
   speeds: Speed,
   speed_overides: SpeedOveride,
   anim_ticks: AnimTick,

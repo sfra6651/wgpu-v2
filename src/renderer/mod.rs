@@ -4,7 +4,7 @@ use wgpu::{ColorTargetState, CurrentSurfaceTexture};
 use winit::window::Window;
 
 use crate::{
-  entity::{Action, Entity, Facing, Kind, Layer, Position, RenderSize},
+  entity::{Action, Entity, Facing, Kind, Layer, Position, RenderSize, Rotation},
   renderer::{
     character_sprite_set::CharacterSpriteSet,
     model_transforms::ModelTransforms,
@@ -26,6 +26,7 @@ pub mod vertex;
 pub struct DrawEntity {
   pub e: Entity,
   pub pos: Position,
+  pub rotation: f32,
   pub size: RenderSize,
   pub sort_y: f32,
   pub layer: Layer,
@@ -236,9 +237,15 @@ impl Renderer {
         eprintln!("entity is missing layer, skipping adding to draw_entities");
         continue;
       };
+
+      let mut rotation = 0.0;
+      if let Some(Rotation(rot)) = world.em.rotations.get(e) {
+        rotation = *rot;
+      };
       self.draw_entities.push(DrawEntity {
         e,
         pos: *pos,
+        rotation,
         size: *render_size,
         layer: *layer,
         sort_y: pos.0.y - render_size.0.y / 2.0,

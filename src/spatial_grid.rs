@@ -11,7 +11,6 @@ pub struct SpatialGrid {
   cols: usize,
   cells: Vec<Vec<Entity>>,
   //needs to be cleared every call of near entities. so we dont have to create a vec in a hot loop
-  near_list: Vec<Entity>,
 }
 
 impl SpatialGrid {
@@ -28,7 +27,6 @@ impl SpatialGrid {
       rows,
       cols,
       cells,
-      near_list: Vec::new(),
     }
   }
 
@@ -58,78 +56,53 @@ impl SpatialGrid {
     self.cells[i].push(e);
   }
 
-  pub fn near_entities(&mut self, pos: Vec2) -> &Vec<Entity> {
-    //clear the near_list, its only valid for one call
-    self.near_list.clear();
-
+  pub fn near_entities(&self, pos: Vec2) -> impl Iterator<Item = Entity> + '_ {
     let (row, col) = self.cell_at(pos);
+    let r0 = row.saturating_sub(1);
+    let r1 = (row + 1).min(self.rows - 1);
+    let c0 = col.saturating_sub(1);
+    let c1 = (col + 1).min(self.cols - 1);
 
-    let rows = row.saturating_sub(1)..=(row + 1).min(self.rows - 1);
-    let cols = col.saturating_sub(1)..=(col + 1).min(self.cols - 1);
-
-    for r in rows {
-      for c in cols.clone() {
-        let i = self.cell_index(r, c);
-        self.near_list.extend_from_slice(&self.cells[i]);
-      }
-    }
-
-    &self.near_list
+    (r0..=r1)
+      .flat_map(move |r| {
+        // cells in one row are contiguous, so take the whole span as one slice
+        let base = r * self.cols;
+        &self.cells[base + c0..=base + c1]
+      })
+      .flat_map(|cell| cell.iter().copied())
   }
 
-  pub fn find_nearest(
-    &mut self,
-    em: &EntityManager,
-    e: Entity,
-    search_radius: f32,
-  ) -> Option<Entity> {
-    let search_cells: usize = (search_radius / self.cell_size).ceil() as usize;
-
-    self.near_list.clear();
-
+  pub fn find_nearest(&self, em: &EntityManager, e: Entity, search_radius: f32) -> Option<Entity> {
+    let search_cells = (search_radius / self.cell_size).ceil() as usize;
     let &Position(pos) = em.positions.get(e)?;
-
     let (row, col) = self.cell_at(pos);
 
     for i in 0..search_cells {
-      let mut found = false;
-      let rows = row.saturating_sub(i)..=(row + i).min(self.rows - 1);
-      let cols = col.saturating_sub(i)..=(col + i).min(self.cols - 1);
-      for r in rows {
-        for c in cols.clone() {
-          let cell_index = self.cell_index(r, c);
-          if self.cells[cell_index].is_empty() || self.cells[cell_index].contains(&e) {
-            continue;
+      let mut closest = None;
+      let mut closest_dist = f32::MAX;
+
+      for r in row.saturating_sub(i)..=(row + i).min(self.rows - 1) {
+        for c in col.saturating_sub(i)..=(col + i).min(self.cols - 1) {
+          for &n in &self.cells[self.cell_index(r, c)] {
+            if n == e {
+              continue;
+            }
+            let Some(&Position(pos_n)) = em.positions.get(n) else {
+              continue;
+            };
+            let dist = pos.distance_squared(pos_n);
+            if dist < closest_dist {
+              closest_dist = dist;
+              closest = Some(n);
+            }
           }
-          self.near_list.extend_from_slice(&self.cells[cell_index]);
-          found = true;
         }
       }
-      if found {
-        break;
-      }
-    }
 
-    if self.near_list.is_empty() {
-      return None;
-    };
-
-    let mut closest = Entity::MAX;
-    let mut closest_distance = f32::MAX;
-    for e_c in self.near_list.iter() {
-      if *e_c == e {
-        continue;
-      }
-      let &Position(pos_n) = em.positions.get(*e_c)?;
-      let dist = pos.distance(pos_n);
-      if dist < closest_distance {
-        closest_distance = dist;
-        closest = *e_c;
+      if closest.is_some() {
+        return closest;
       }
     }
-    if closest == Entity::MAX {
-      return None;
-    }
-    Some(closest)
+    None
   }
 }
