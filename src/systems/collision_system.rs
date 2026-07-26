@@ -3,63 +3,73 @@ use std::time::Instant;
 use glam::{Vec2, vec2};
 
 use crate::{
-  entity::{Damage, Entity, EntityManager, HitBox, Kind, Position},
+  entity::{Damage, Entity, EntityManager, Health, HitBoxRad, Position},
+  spatial_grid::CellValue,
   world::{PosUpdate, World},
 };
 
-pub enum CollisionResponse {
-  Block,
-  Push,
-  Trigger,
-  Ignore,
-}
+pub fn handle_physics_collisions(w: &mut World) {
+  //player collision
+  if let Some(player) = w.em.player
+    && let Some(pos) = w.em.positions.get(player)
+    && let Some(rad) = w.em.hit_box_rads.get(player)
+  {
+    for n in w.spatial_grid.near_entities(pos.0) {
+      if n.e == player || w.em.projectiles.get(n.e).is_some() {
+        continue;
+      }
+      let Some(mtv) = penetration((*pos, *rad), n) else {
+        continue;
+      };
+      w.position_updates.push(PosUpdate {
+        e: player,
+        offset: mtv / 2.0,
+      });
+    }
+  }
 
-fn collision_response(a: &Kind, b: &Kind) -> CollisionResponse {
-  use Kind::*;
-  match (a, b) {
-    (Player, Enemy) => CollisionResponse::Push,
-    (Enemy, Player) => CollisionResponse::Push,
-    (Enemy, Enemy) => CollisionResponse::Push,
-    (Projectile, Enemy) => CollisionResponse::Trigger,
-    (Enemy, Projectile) => CollisionResponse::Ignore,
-    _ => CollisionResponse::Ignore,
+  //npc collisions
+  for (_, &e) in w.em.npcs.iter() {
+    if let Some(pos) = w.em.positions.get(e)
+      && let Some(rad) = w.em.hit_box_rads.get(e)
+    {
+      for n in w.spatial_grid.near_entities(pos.0) {
+        if n.e == e || w.em.projectiles.get(n.e).is_some() {
+          continue;
+        }
+        let Some(mtv) = penetration((*pos, *rad), n) else {
+          continue;
+        };
+        w.position_updates.push(PosUpdate {
+          e,
+          offset: mtv / 2.0,
+        });
+      }
+    }
   }
 }
 
-pub fn handle_collisions(w: &mut World) {
-  // step 1: build corrections
-  for (&Position(pos), &e) in w.em.positions.iter() {
-    for n in w.spatial_grid.near_entities(pos) {
-      if n == e {
-        continue;
-      }
-
-      let Some(mtv) = penetration(&w.em, e, n) else {
-        continue;
-      };
-
-      let Some(e_kind) = w.em.kinds.get(e) else {
-        continue;
-      };
-      let Some(n_kind) = w.em.kinds.get(n) else {
-        continue;
-      };
-      match collision_response(e_kind, n_kind) {
-        // full push-out; `other` is treated as immovable
-        CollisionResponse::Block => w.position_updates.push(PosUpdate { e, offset: mtv }),
-        // each pair is visited from both sides, so each entity
-        // takes half the separation
-        CollisionResponse::Push => w.position_updates.push(PosUpdate {
-          e,
-          offset: mtv / 2.0,
-        }),
-        CollisionResponse::Ignore => {}
-        CollisionResponse::Trigger => {
+pub fn handle_projectile_collisions(w: &mut World) {
+  for (_, &e) in w.em.projectiles.iter() {
+    if let Some(pos) = w.em.positions.get(e)
+      && let Some(rad) = w.em.hit_box_rads.get(e)
+    {
+      for n in w.spatial_grid.near_entities(pos.0) {
+        if n.e == e {
+          continue;
+        };
+        if penetration((*pos, *rad), n).is_some() {
           let Some(Damage(dmg)) = w.em.damages.get(e) else {
             continue;
           };
-          //TODO: damage resolve
+          let Some(Health(hp)) = w.em.healths.get_mut(n.e) else {
+            continue;
+          };
           w.removals.push(e);
+          *hp -= dmg;
+          if *hp <= 0.0 {
+            w.removals.push(n.e);
+          }
         }
       }
     }
@@ -68,11 +78,10 @@ pub fn handle_collisions(w: &mut World) {
 
 /// Minimum translation vector that pushes `a` out of `b`, or `None` if the
 /// circles don't overlap. Positions are centers; hitboxes are radius's
-fn penetration(em: &EntityManager, e_a: Entity, e_b: Entity) -> Option<Vec2> {
-  let &Position(pos_a) = em.positions.get(e_a)?;
-  let &Position(pos_b) = em.positions.get(e_b)?;
-  let &HitBox(r_a) = em.hit_boxes.get(e_a)?;
-  let &HitBox(r_b) = em.hit_boxes.get(e_b)?;
+fn penetration(e: (Position, HitBoxRad), other: CellValue) -> Option<Vec2> {
+  let (Position(pos_a), HitBoxRad(r_a)) = e;
+  let Position(pos_b) = other.pos;
+  let r_b = other.rad;
 
   let delta = pos_a - pos_b;
   let r = r_a + r_b;

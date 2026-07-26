@@ -45,10 +45,10 @@ pub enum AiType {
 }
 
 #[derive(Copy, Clone)]
-pub enum Kind {
+pub enum TextureType {
   Player,
-  Enemy,
-  Projectile,
+  Goblin,
+  Arrow,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -196,6 +196,7 @@ macro_rules! components {
   ($($field:ident: $comp:ty),+ $(,)?) => {
     pub struct EntityManager {
       entities: EntityStore,
+      pub player: Option<Entity>,
       $(pub $field: ComponentStore<$comp>,)+
     }
 
@@ -203,6 +204,7 @@ macro_rules! components {
       pub fn new() -> Self {
         Self {
           entities: EntityStore::new(),
+          player: None,
           $($field: ComponentStore::new(),)+
         }
       }
@@ -235,7 +237,7 @@ pub struct Position(pub Vec2);
 pub struct RenderSize(pub Vec2);
 
 #[derive(Clone, Copy)]
-pub struct HitBox(pub f32);
+pub struct HitBoxRad(pub f32);
 
 #[derive(Clone, Copy)]
 pub struct DirIntent(pub Vec2);
@@ -279,8 +281,6 @@ pub enum Layer {
 
 // Entity type tags
 #[derive(Clone, Copy)]
-pub struct Player;
-#[derive(Clone, Copy)]
 pub struct Npc;
 #[derive(Clone, Copy)]
 pub struct Projectile;
@@ -295,14 +295,13 @@ pub trait Component: Sized {
 components! {
   positions: Position,
   render_sizes: RenderSize,
-  hit_boxes: HitBox,
+  hit_box_rads: HitBoxRad,
   dir_intents: DirIntent,
   rotations: Rotation,
   speeds: Speed,
   speed_overides: SpeedOveride,
   anim_ticks: AnimTick,
   facings: Facing,
-  kinds: Kind,
   ai: AiType,
   last_shot_at: LastShotAt,
   actions: Action,
@@ -313,6 +312,13 @@ components! {
   lifetimes: LifeTime,
   abilities: Ability,
   on_destroys: OnDestroy,
+
+  //entity tags
+  npcs: Npc,
+  projectiles: Projectile,
+
+  //render specifics
+  texture_types: TextureType,
 }
 
 impl EntityManager {

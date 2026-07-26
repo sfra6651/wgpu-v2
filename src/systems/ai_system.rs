@@ -2,8 +2,12 @@ use glam::Vec2;
 
 use crate::entity::{DirIntent, Entity, EntityManager, Position, Speed};
 
-pub fn update_ai(em: &mut EntityManager, player: Entity) {
+pub fn update_ai(em: &mut EntityManager) {
   use crate::entity::AiType::*;
+
+  let Some(player) = em.player else {
+    return;
+  };
   let Some(Position(player_pos)) = em.positions.get(player) else {
     return;
   };

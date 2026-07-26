@@ -5,11 +5,18 @@ use crate::{
   world::{self},
 };
 
+#[derive(Copy, Clone)]
+pub struct CellValue {
+  pub e: Entity,
+  pub pos: Position,
+  pub rad: f32,
+}
+
 pub struct SpatialGrid {
   cell_size: f32,
   rows: usize,
   cols: usize,
-  cells: Vec<Vec<Entity>>,
+  cells: Vec<Vec<CellValue>>,
   //needs to be cleared every call of near entities. so we dont have to create a vec in a hot loop
 }
 
@@ -17,7 +24,7 @@ impl SpatialGrid {
   pub fn new(cell_size: f32) -> Self {
     let rows = (world::HEIGHT / cell_size).ceil() as usize;
     let cols = (world::WIDTH / cell_size).ceil() as usize;
-    let mut cells: Vec<Vec<Entity>> = Vec::new();
+    let mut cells: Vec<Vec<CellValue>> = Vec::new();
     for _ in 0..rows * cols {
       cells.push(Vec::new());
     }
@@ -48,15 +55,18 @@ impl SpatialGrid {
   }
 
   pub fn insert(&mut self, em: &EntityManager, e: Entity) {
-    let Some(&Position(pos)) = em.positions.get(e) else {
+    let Some(&pos) = em.positions.get(e) else {
       return;
     };
-    let (row, col) = self.cell_at(pos);
+    let Some(rad) = em.hit_box_rads.get(e) else {
+      return;
+    };
+    let (row, col) = self.cell_at(pos.0);
     let i = self.cell_index(row, col);
-    self.cells[i].push(e);
+    self.cells[i].push(CellValue { e, pos, rad: rad.0 });
   }
 
-  pub fn near_entities(&self, pos: Vec2) -> impl Iterator<Item = Entity> + '_ {
+  pub fn near_entities(&self, pos: Vec2) -> impl Iterator<Item = CellValue> + '_ {
     let (row, col) = self.cell_at(pos);
     let r0 = row.saturating_sub(1);
     let r1 = (row + 1).min(self.rows - 1);
@@ -72,7 +82,12 @@ impl SpatialGrid {
       .flat_map(|cell| cell.iter().copied())
   }
 
-  pub fn find_nearest(&self, em: &EntityManager, e: Entity, search_radius: f32) -> Option<Entity> {
+  pub fn find_nearest(
+    &self,
+    em: &EntityManager,
+    e: Entity,
+    search_radius: f32,
+  ) -> Option<CellValue> {
     let search_cells = (search_radius / self.cell_size).ceil() as usize;
     let &Position(pos) = em.positions.get(e)?;
     let (row, col) = self.cell_at(pos);
@@ -83,17 +98,14 @@ impl SpatialGrid {
 
       for r in row.saturating_sub(i)..=(row + i).min(self.rows - 1) {
         for c in col.saturating_sub(i)..=(col + i).min(self.cols - 1) {
-          for &n in &self.cells[self.cell_index(r, c)] {
-            if n == e {
+          for &cell_val in &self.cells[self.cell_index(r, c)] {
+            if cell_val.e == e {
               continue;
             }
-            let Some(&Position(pos_n)) = em.positions.get(n) else {
-              continue;
-            };
-            let dist = pos.distance_squared(pos_n);
+            let dist = pos.distance_squared(cell_val.pos.0);
             if dist < closest_dist {
               closest_dist = dist;
-              closest = Some(n);
+              closest = Some(cell_val);
             }
           }
         }

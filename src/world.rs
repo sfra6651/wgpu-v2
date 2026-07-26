@@ -28,7 +28,6 @@ pub struct PosUpdate {
 
 pub struct World {
   pub em: Box<EntityManager>,
-  pub player: Entity,
   pub spatial_grid: SpatialGrid,
   pub camera: Camera,
   pub size: Vec2,
@@ -40,11 +39,12 @@ pub struct World {
 impl World {
   pub fn new() -> Self {
     let mut em = Box::new(EntityManager::new());
+
     let player = player(&mut em);
+    em.player = Some(player);
 
     Self {
       em,
-      player,
       camera: Camera::new((WIDTH, HEIGHT).into()),
       size: (WIDTH, HEIGHT).into(),
       spatial_grid: SpatialGrid::new(1.0),
@@ -59,7 +59,7 @@ impl World {
 
     handle_lifetimes(&mut self.em, &mut self.removals);
 
-    ai_system::update_ai(&mut self.em, self.player);
+    ai_system::update_ai(&mut self.em);
     self.update_player(input);
 
     let t = Instant::now();
@@ -70,23 +70,15 @@ impl World {
 
     animation_system::update_animations(&mut self.em);
 
-    collision_system::handle_collisions(self);
+    collision_system::handle_physics_collisions(self);
+    collision_system::handle_projectile_collisions(self);
+
     self.apply_pos_corrections();
     self.position_updates.clear();
 
-    self.shoot_arrows();
+    self.update_camera();
 
-    // update camera
-    let Some(&DirIntent(dir_intent)) = self.em.dir_intents.get(self.player) else {
-      return;
-    };
-    let Some(&Speed(speed)) = self.em.speeds.get(self.player) else {
-      return;
-    };
-    self.camera.velocity = dir_intent * speed;
-    if let Some(&Position(pos)) = self.em.positions.get(self.player) {
-      self.camera.pos = pos;
-    }
+    self.shoot_arrows();
 
     let elapsed = self.last_spawn.elapsed().as_secs_f32();
     if elapsed >= 1.0 {
@@ -118,39 +110,59 @@ impl World {
   }
 
   pub fn update_player(&mut self, input: &InputState) {
-    if let Some(DirIntent(dir)) = self.em.dir_intents.get_mut(self.player) {
+    let Some(player) = self.em.player else {
+      return;
+    };
+    if let Some(DirIntent(dir)) = self.em.dir_intents.get_mut(player) {
       *dir = player_controller::player_dir_intent(input);
 
       if input.is_down(KeyCode::Space) {
-        ability_system::begin_dash(&mut self.em, self.player);
+        ability_system::begin_dash(&mut self.em, player);
       }
     };
   }
 
+  fn update_camera(&mut self) {
+    let Some(player) = self.em.player else {
+      return;
+    };
+    // update camera
+    let Some(&DirIntent(dir_intent)) = self.em.dir_intents.get(player) else {
+      return;
+    };
+    let Some(&Speed(speed)) = self.em.speeds.get(player) else {
+      return;
+    };
+    self.camera.velocity = dir_intent * speed;
+    if let Some(&Position(pos)) = self.em.positions.get(player) {
+      self.camera.pos = pos;
+    }
+  }
+
   fn shoot_arrows(&mut self) {
-    let Some(&LastShotAt(last_shot_at)) = self.em.last_shot_at.get(self.player) else {
+    let Some(player) = self.em.player else {
+      return;
+    };
+    let Some(&LastShotAt(last_shot_at)) = self.em.last_shot_at.get(player) else {
       return;
     };
 
     let mut shot = false;
     if last_shot_at >= 60 {
       shot = true;
-      if let Some(closest) = self.spatial_grid.find_nearest(&self.em, self.player, 30.0) {
-        let Some(&Position(pos)) = self.em.positions.get(self.player) else {
-          return;
-        };
-        let Some(&Position(pos_c)) = self.em.positions.get(closest) else {
+      if let Some(closest) = self.spatial_grid.find_nearest(&self.em, player, 10.0) {
+        let Some(&Position(pos)) = self.em.positions.get(player) else {
           return;
         };
 
-        let dir = (pos_c - pos).normalize_or_zero();
+        let dir = (closest.pos.0 - pos).normalize_or_zero();
         if dir != Vec2::ZERO {
           arrow(&mut self.em, pos, dir);
         }
       }
     }
 
-    if let Some(LastShotAt(last_shot_at)) = self.em.last_shot_at.get_mut(self.player) {
+    if let Some(LastShotAt(last_shot_at)) = self.em.last_shot_at.get_mut(player) {
       if shot {
         *last_shot_at = 0;
       } else {

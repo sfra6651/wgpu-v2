@@ -4,7 +4,7 @@ use wgpu::{ColorTargetState, CurrentSurfaceTexture};
 use winit::window::Window;
 
 use crate::{
-  entity::{Action, Entity, Facing, Kind, Layer, Position, RenderSize, Rotation},
+  entity::{Action, Entity, Facing, Layer, Position, RenderSize, Rotation, TextureType},
   renderer::{
     character_sprite_set::CharacterSpriteSet,
     model_transforms::ModelTransforms,
@@ -27,9 +27,10 @@ pub struct DrawEntity {
   pub e: Entity,
   pub pos: Position,
   pub rotation: f32,
-  pub size: RenderSize,
+  pub render_size: RenderSize,
   pub sort_y: f32,
   pub layer: Layer,
+  pub texture_type: TextureType,
 }
 
 pub struct Renderer {
@@ -228,13 +229,18 @@ impl Renderer {
   pub fn render(&mut self, window: &Window, world: &World) {
     //creat the list of entities to drawy, ordered by depth so that looping trough automatically renders the sprite at the correct depth
     self.draw_entities.clear();
-    for (render_size, &e) in world.em.render_sizes.iter() {
-      let Some(pos) = world.em.positions.get(e) else {
+    for (&render_size, &e) in world.em.render_sizes.iter() {
+      let Some(&pos) = world.em.positions.get(e) else {
         eprintln!("entity is missing pos, skipping adding to draw entities");
         continue;
       };
-      let Some(layer) = world.em.layers.get(e) else {
+      let Some(&layer) = world.em.layers.get(e) else {
         eprintln!("entity is missing layer, skipping adding to draw_entities");
+        continue;
+      };
+
+      let Some(&texture_type) = world.em.texture_types.get(e) else {
+        eprintln!("entity is missing texture_type, skipping adding to draw_entities");
         continue;
       };
 
@@ -244,11 +250,12 @@ impl Renderer {
       };
       self.draw_entities.push(DrawEntity {
         e,
-        pos: *pos,
+        pos,
         rotation,
-        size: *render_size,
-        layer: *layer,
+        render_size,
+        layer,
         sort_y: pos.0.y - render_size.0.y / 2.0,
+        texture_type,
       });
     }
     // sort the draw intities
@@ -346,24 +353,26 @@ impl Renderer {
       rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
 
       let mut i = 0;
+      // draw entiteis
+
       for draw_e in self.draw_entities.iter() {
         let e = draw_e.e;
-        let Some(kind) = world.em.kinds.get(e) else {
+        let Some(texture_type) = world.em.texture_types.get(e) else {
           continue;
         };
 
-        if let Some(bind_group) = match kind {
-          Kind::Player => self
+        if let Some(bind_group) = match texture_type {
+          TextureType::Player => self
             .sprite_set
             .resolve(&world.em, e)
             .as_ref()
             .map(|sprite_set| &sprite_set.bind_group),
-          Kind::Enemy => self
+          TextureType::Goblin => self
             .goblin_sprite_set
             .resolve(&world.em, e)
             .as_ref()
             .map(|sprite_set| &sprite_set.bind_group),
-          Kind::Projectile => Some(&self.arrow_texture.bind_group),
+          TextureType::Arrow => Some(&self.arrow_texture.bind_group),
           _ => None,
         } {
           rpass.set_bind_group(2, bind_group, &[]);
