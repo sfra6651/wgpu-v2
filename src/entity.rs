@@ -282,8 +282,12 @@ pub enum Layer {
 // Entity type tags
 #[derive(Clone, Copy)]
 pub struct Npc;
+
 #[derive(Clone, Copy)]
 pub struct Projectile;
+
+#[derive(Clone, Copy)]
+pub struct FrontalCone;
 
 pub trait Component: Sized {
   fn store(em: &EntityManager) -> &ComponentStore<Self>;
@@ -316,6 +320,7 @@ components! {
   //entity tags
   npcs: Npc,
   projectiles: Projectile,
+  frontal_cones: FrontalCone,
 
   //render specifics
   texture_types: TextureType,

@@ -13,6 +13,8 @@ use crate::world::World;
 
 //game systems
 mod systems;
+//ui
+mod ui;
 //
 mod camera;
 mod entity;
@@ -124,6 +126,13 @@ impl ApplicationHandler for App {
       } => {
         self.input_state.handle_key_event(&event);
       }
+      WindowEvent::CursorMoved {
+        device_id: _,
+        position,
+      } => {
+        self.input_state.update_cursor_pos(position);
+      }
+
       _ => (),
     }
   }

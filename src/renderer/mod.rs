@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use glam::vec2;
 use wgpu::{ColorTargetState, CurrentSurfaceTexture};
 use winit::window::Window;
 
@@ -13,6 +14,7 @@ use crate::{
     uniform::{UniformManager, UniformVariant},
     vertex::{Vertex, grid_vertices, unit_square},
   },
+  utils::ui_projection_matrix,
   world::World,
 };
 
@@ -147,7 +149,7 @@ impl Renderer {
           Some(
             &self
               .uniform_manager
-              .get(UniformVariant::Projection)
+              .get(UniformVariant::WorldSpaceProjection)
               .bind_group_layout,
           ),
           Some(&self.model_transforms.bind_group_layout),
@@ -174,7 +176,7 @@ impl Renderer {
         bind_group_layouts: &[Some(
           &self
             .uniform_manager
-            .get(UniformVariant::Projection)
+            .get(UniformVariant::WorldSpaceProjection)
             .bind_group_layout,
         )],
         targets: &[Some(swapchain_format.into())],
@@ -182,6 +184,21 @@ impl Renderer {
           topology: wgpu::PrimitiveTopology::LineList,
           ..Default::default()
         },
+      },
+    );
+
+    self.pipelines[PipelineType::Ui as usize] = Pipeline::new(
+      &self.device,
+      wgpu::ShaderSource::Wgsl(include_str!("../shaders/ui_shader.wgsl").into()),
+      CreatePipelineDesc {
+        bind_group_layouts: &[Some(
+          &self
+            .uniform_manager
+            .get(UniformVariant::ScreenSpaceProjection)
+            .bind_group_layout,
+        )],
+        targets: &[Some(swapchain_format.into())],
+        primitive: wgpu::PrimitiveState::default(),
       },
     );
 
@@ -193,7 +210,7 @@ impl Renderer {
           Some(
             &self
               .uniform_manager
-              .get(UniformVariant::Projection)
+              .get(UniformVariant::WorldSpaceProjection)
               .bind_group_layout,
           ),
           Some(&self.model_transforms.bind_group_layout),
@@ -292,9 +309,22 @@ impl Renderer {
     let aspect = width as f32 / height.max(1) as f32;
     let view_proj = world.camera.view_projection(aspect);
     self.queue.write_buffer(
-      &self.uniform_manager.get(UniformVariant::Projection).buffer,
+      &self
+        .uniform_manager
+        .get(UniformVariant::WorldSpaceProjection)
+        .buffer,
       0,
       bytemuck::cast_slice(&[view_proj.to_cols_array()]),
+    );
+
+    let ui_proj = ui_projection_matrix(vec2(width as f32, height as f32));
+    self.queue.write_buffer(
+      &self
+        .uniform_manager
+        .get(UniformVariant::ScreenSpaceProjection)
+        .buffer,
+      0,
+      bytemuck::cast_slice(&[ui_proj.to_cols_array()]),
     );
 
     let view = frame
@@ -331,7 +361,7 @@ impl Renderer {
           0,
           &self
             .uniform_manager
-            .get(UniformVariant::Projection)
+            .get(UniformVariant::WorldSpaceProjection)
             .bind_group,
           &[],
         );
@@ -346,7 +376,7 @@ impl Renderer {
         0,
         &self
           .uniform_manager
-          .get(UniformVariant::Projection)
+          .get(UniformVariant::WorldSpaceProjection)
           .bind_group,
         &[],
       );
@@ -355,13 +385,9 @@ impl Renderer {
       let mut i = 0;
       // draw entiteis
 
-      for draw_e in self.draw_entities.iter() {
+      self.draw_entities.iter().for_each(|draw_e| {
         let e = draw_e.e;
-        let Some(texture_type) = world.em.texture_types.get(e) else {
-          continue;
-        };
-
-        if let Some(bind_group) = match texture_type {
+        if let Some(bind_group) = match draw_e.texture_type {
           TextureType::Player => self
             .sprite_set
             .resolve(&world.em, e)
@@ -381,12 +407,27 @@ impl Renderer {
         rpass.draw(0..6, i as u32..i as u32 + 1);
 
         i += 1;
-      }
+      });
 
       //rpass.draw(0..6, 0..self.model_transforms.count as u32)
+      if let Some(pipeline) = &self.pipelines[PipelineType::Ui as usize] {
+        rpass.set_pipeline(&pipeline.pipeline);
+        rpass.set_vertex_buffer(0, self.square_buffer.slice(..));
+        rpass.set_bind_group(
+          0,
+          &self
+            .uniform_manager
+            .get(UniformVariant::ScreenSpaceProjection)
+            .bind_group,
+          &[],
+        );
+        rpass.draw(0..6, 0..1);
+      }
     }
 
     self.queue.submit(Some(encoder.finish()));
     frame.present();
   }
+
+  pub fn render_ui() {}
 }

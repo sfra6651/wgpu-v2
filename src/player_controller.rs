@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use glam::Vec2;
 use winit::{
+  dpi::PhysicalPosition,
   event::{ElementState, KeyEvent},
   keyboard::{KeyCode, PhysicalKey},
 };
@@ -9,6 +10,7 @@ use winit::{
 #[derive(Default)]
 pub struct InputState {
   held: HashSet<KeyCode>,
+  mouse_pos: Vec2,
 }
 
 impl InputState {
@@ -24,6 +26,11 @@ impl InputState {
 
   pub fn is_down(&self, code: KeyCode) -> bool {
     self.held.contains(&code)
+  }
+
+  pub fn update_cursor_pos(&mut self, pos: PhysicalPosition<f64>) {
+    self.mouse_pos.x = pos.x as f32;
+    self.mouse_pos.y = pos.y as f32;
   }
 }
 

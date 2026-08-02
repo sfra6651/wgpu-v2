@@ -3,7 +3,7 @@ use std::time::Instant;
 use glam::{Vec2, vec2};
 
 use crate::{
-  entity::{Damage, Entity, EntityManager, Health, HitBoxRad, Position},
+  entity::{Damage, DirIntent, Entity, EntityManager, Health, HitBoxRad, Position},
   spatial_grid::CellValue,
   world::{PosUpdate, World},
 };
@@ -53,6 +53,7 @@ pub fn handle_projectile_collisions(w: &mut World) {
   for (_, &e) in w.em.projectiles.iter() {
     if let Some(pos) = w.em.positions.get(e)
       && let Some(rad) = w.em.hit_box_rads.get(e)
+      && let Some(DirIntent(dir)) = w.em.dir_intents.get(e)
     {
       for n in w.spatial_grid.near_entities(pos.0) {
         if n.e == e {
@@ -66,6 +67,10 @@ pub fn handle_projectile_collisions(w: &mut World) {
             continue;
           };
           w.removals.push(e);
+          w.position_updates.push(PosUpdate {
+            e: n.e,
+            offset: dir.normalize_or_zero() * 0.2,
+          });
           *hp -= dmg;
           if *hp <= 0.0 {
             w.removals.push(n.e);
