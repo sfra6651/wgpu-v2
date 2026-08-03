@@ -16,6 +16,7 @@ mod systems;
 //ui
 mod ui;
 //
+mod archetype;
 mod camera;
 mod entity;
 mod entity_templates;
