@@ -56,7 +56,7 @@ impl Uniform {
   pub fn new(device: &wgpu::Device, name: &str, size: u64) -> Self {
     let buffer = device.create_buffer(&wgpu::BufferDescriptor {
       label: Some(&format!("{} buffer", name)),
-      size: size,
+      size,
       usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
       mapped_at_creation: false,
     });

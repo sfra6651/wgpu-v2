@@ -17,7 +17,6 @@ pub const EMPTY_ENTITY: usize = usize::MAX;
 pub enum Action {
   Idle,
   Run,
-  Dying,
 }
 
 #[derive(Copy, Clone)]
@@ -40,7 +39,6 @@ impl Facing {
 
 #[derive(Copy, Clone)]
 pub enum AiType {
-  None,
   Goblin,
 }
 
@@ -55,13 +53,6 @@ pub enum TextureType {
 pub struct Entity {
   pub id: u32,
   pub generation: u32,
-}
-
-impl Entity {
-  pub const MAX: Self = Self {
-    id: u32::MAX,
-    generation: u32::MAX,
-  };
 }
 
 pub struct EntityStore {
@@ -80,7 +71,7 @@ impl EntityStore {
   }
 
   pub fn create(&mut self) -> Entity {
-    if self.slots_used as usize >= MAX_ENTITIES && self.free_list.len() == 0 {
+    if self.slots_used as usize >= MAX_ENTITIES && self.free_list.is_empty() {
       panic!("entity limit reached, TODO: handle gracefully???");
     }
     let id;
@@ -182,12 +173,6 @@ impl<T> ComponentStore<T> {
       self.sparse[other_e.id as usize] = dense_index;
     }
     self.sparse[e.id as usize] = EMPTY_ENTITY;
-  }
-}
-
-impl<T: Copy> ComponentStore<T> {
-  pub fn get_copy(&self, e: Entity) -> Option<T> {
-    self.get(e).copied()
   }
 }
 
@@ -329,9 +314,5 @@ components! {
 impl EntityManager {
   pub fn attach<C: Component>(&mut self, e: Entity, component: C) {
     C::store_mut(self).insert(component, e);
-  }
-
-  pub fn slots_used(&self) -> u32 {
-    self.entities.slots_used
   }
 }

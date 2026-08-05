@@ -1,7 +1,4 @@
 pub struct Texture {
-  pub texture: wgpu::Texture,
-  pub view: wgpu::TextureView,
-  pub sampler: wgpu::Sampler,
   pub bind_group_layout: wgpu::BindGroupLayout,
   pub bind_group: wgpu::BindGroup,
 }
@@ -101,9 +98,6 @@ impl Texture {
     });
 
     Self {
-      texture,
-      view,
-      sampler,
       bind_group_layout,
       bind_group,
     }

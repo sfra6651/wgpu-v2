@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use glam::vec2;
-use wgpu::{ColorTargetState, CurrentSurfaceTexture};
+use wgpu::{ColorTargetState, CurrentSurfaceTexture, RenderPass};
 use winit::window::Window;
 
 use crate::{
@@ -243,26 +243,25 @@ impl Renderer {
       .write_buffer(&self.square_buffer, 0, bytemuck::cast_slice(&square));
   }
 
-  pub fn render(&mut self, window: &Window, world: &World) {
-    //creat the list of entities to drawy, ordered by depth so that looping trough automatically renders the sprite at the correct depth
+  fn prepare_draw_entities(&mut self, w: &World) {
     self.draw_entities.clear();
-    for (&render_size, &e) in world.em.render_sizes.iter() {
-      let Some(&pos) = world.em.positions.get(e) else {
+    for (&render_size, &e) in w.em.render_sizes.iter() {
+      let Some(&pos) = w.em.positions.get(e) else {
         eprintln!("entity is missing pos, skipping adding to draw entities");
         continue;
       };
-      let Some(&layer) = world.em.layers.get(e) else {
+      let Some(&layer) = w.em.layers.get(e) else {
         eprintln!("entity is missing layer, skipping adding to draw_entities");
         continue;
       };
 
-      let Some(&texture_type) = world.em.texture_types.get(e) else {
+      let Some(&texture_type) = w.em.texture_types.get(e) else {
         eprintln!("entity is missing texture_type, skipping adding to draw_entities");
         continue;
       };
 
       let mut rotation = 0.0;
-      if let Some(Rotation(rot)) = world.em.rotations.get(e) {
+      if let Some(Rotation(rot)) = w.em.rotations.get(e) {
         rotation = *rot;
       };
       self.draw_entities.push(DrawEntity {
@@ -282,28 +281,14 @@ impl Renderer {
         .then(b.sort_y.total_cmp(&a.sort_y)) // then higher y drawn first
         .then(a.e.cmp(&b.e)) // stable tiebreak — prevents flicker
     });
-
-    // write model transforms
     self
       .model_transforms
       .write_transforms(&self.draw_entities, &self.queue);
+  }
 
-    let Some(texture_pipeline) = &self.pipelines[PipelineType::Texture as usize] else {
-      return;
-    };
+  fn prepare_ui_renderables(&mut self, window: &Window, world: &World) {}
 
-    let frame = match self.surface.get_current_texture() {
-      CurrentSurfaceTexture::Success(frame) => frame,
-      CurrentSurfaceTexture::Occluded => {
-        window.request_redraw();
-        return;
-      }
-      other => {
-        eprintln!("{:?}", other);
-        panic!("failed to get surface texture for frame")
-      }
-    };
-
+  fn write_uniforms(&mut self, window: &Window, world: &World) {
     let width = window.inner_size().width;
     let height = window.inner_size().height;
     let aspect = width as f32 / height.max(1) as f32;
@@ -326,6 +311,25 @@ impl Renderer {
       0,
       bytemuck::cast_slice(&[ui_proj.to_cols_array()]),
     );
+  }
+
+  pub fn render(&mut self, window: &Window, world: &World) {
+    // pre-render steps
+    self.prepare_draw_entities(world);
+    self.write_uniforms(window, world);
+    self.prepare_ui_renderables(window, world);
+
+    let frame = match self.surface.get_current_texture() {
+      CurrentSurfaceTexture::Success(frame) => frame,
+      CurrentSurfaceTexture::Occluded => {
+        window.request_redraw();
+        return;
+      }
+      other => {
+        eprintln!("{:?}", other);
+        panic!("failed to get surface texture for frame")
+      }
+    };
 
     let view = frame
       .texture
@@ -352,82 +356,94 @@ impl Renderer {
         multiview_mask: None,
       });
 
-      if let (Some(grid_pipeline), Some(grid_buffer)) = (
-        &self.pipelines[PipelineType::Gridlines as usize],
-        &self.grid_buffer,
-      ) {
-        rpass.set_pipeline(&grid_pipeline.pipeline);
-        rpass.set_bind_group(
-          0,
-          &self
-            .uniform_manager
-            .get(UniformVariant::WorldSpaceProjection)
-            .bind_group,
-          &[],
-        );
-        rpass.set_vertex_buffer(0, grid_buffer.slice(..));
-        rpass.draw(0..self.grid_vertex_count, 0..1); // ONE instance
-      }
-
-      //rpass.set_pipeline(pipeline);
-      rpass.set_pipeline(&texture_pipeline.pipeline);
-      rpass.set_vertex_buffer(0, self.square_buffer.slice(..));
-      rpass.set_bind_group(
-        0,
-        &self
-          .uniform_manager
-          .get(UniformVariant::WorldSpaceProjection)
-          .bind_group,
-        &[],
-      );
-      rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
-
-      let mut i = 0;
-      // draw entiteis
-
-      self.draw_entities.iter().for_each(|draw_e| {
-        let e = draw_e.e;
-        if let Some(bind_group) = match draw_e.texture_type {
-          TextureType::Player => self
-            .sprite_set
-            .resolve(&world.em, e)
-            .as_ref()
-            .map(|sprite_set| &sprite_set.bind_group),
-          TextureType::Goblin => self
-            .goblin_sprite_set
-            .resolve(&world.em, e)
-            .as_ref()
-            .map(|sprite_set| &sprite_set.bind_group),
-          TextureType::Arrow => Some(&self.arrow_texture.bind_group),
-          _ => None,
-        } {
-          rpass.set_bind_group(2, bind_group, &[]);
-        }
-
-        rpass.draw(0..6, i as u32..i as u32 + 1);
-
-        i += 1;
-      });
-
-      //rpass.draw(0..6, 0..self.model_transforms.count as u32)
-      if let Some(pipeline) = &self.pipelines[PipelineType::Ui as usize] {
-        rpass.set_pipeline(&pipeline.pipeline);
-        rpass.set_vertex_buffer(0, self.square_buffer.slice(..));
-        rpass.set_bind_group(
-          0,
-          &self
-            .uniform_manager
-            .get(UniformVariant::ScreenSpaceProjection)
-            .bind_group,
-          &[],
-        );
-        rpass.draw(0..6, 0..1);
-      }
+      // do actual rendering work
+      self.render_grid_lines(&mut rpass);
+      self.render_entities(&mut rpass, world);
+      self.render_ui(&mut rpass);
     }
 
     self.queue.submit(Some(encoder.finish()));
     frame.present();
   }
 
-  pub fn render_ui() {}
+  fn render_ui(&self, rpass: &mut RenderPass) {
+    let Some(pipeline) = &self.pipelines[PipelineType::Ui as usize] else {
+      return;
+    };
+    rpass.set_pipeline(&pipeline.pipeline);
+    rpass.set_vertex_buffer(0, self.square_buffer.slice(..));
+    rpass.set_bind_group(
+      0,
+      &self
+        .uniform_manager
+        .get(UniformVariant::ScreenSpaceProjection)
+        .bind_group,
+      &[],
+    );
+    rpass.draw(0..6, 0..1);
+  }
+
+  fn render_grid_lines(&self, rpass: &mut RenderPass) {
+    let (Some(grid_pipeline), Some(grid_buffer)) = (
+      &self.pipelines[PipelineType::Gridlines as usize],
+      &self.grid_buffer,
+    ) else {
+      return;
+    };
+    rpass.set_pipeline(&grid_pipeline.pipeline);
+    rpass.set_bind_group(
+      0,
+      &self
+        .uniform_manager
+        .get(UniformVariant::WorldSpaceProjection)
+        .bind_group,
+      &[],
+    );
+    rpass.set_vertex_buffer(0, grid_buffer.slice(..));
+    rpass.draw(0..self.grid_vertex_count, 0..1); // ONE instance
+  }
+
+  fn render_entities(&self, rpass: &mut RenderPass, world: &World) {
+    let Some(texture_pipeline) = &self.pipelines[PipelineType::Texture as usize] else {
+      return;
+    };
+    rpass.set_pipeline(&texture_pipeline.pipeline);
+    rpass.set_vertex_buffer(0, self.square_buffer.slice(..));
+    rpass.set_bind_group(
+      0,
+      &self
+        .uniform_manager
+        .get(UniformVariant::WorldSpaceProjection)
+        .bind_group,
+      &[],
+    );
+    rpass.set_bind_group(1, &self.model_transforms.bind_group, &[]);
+
+    let mut i = 0;
+    // draw entiteis
+
+    self.draw_entities.iter().for_each(|draw_e| {
+      let e = draw_e.e;
+      if let Some(bind_group) = match draw_e.texture_type {
+        TextureType::Player => self
+          .sprite_set
+          .resolve(&world.em, e)
+          .as_ref()
+          .map(|sprite_set| &sprite_set.bind_group),
+        TextureType::Goblin => self
+          .goblin_sprite_set
+          .resolve(&world.em, e)
+          .as_ref()
+          .map(|sprite_set| &sprite_set.bind_group),
+        TextureType::Arrow => Some(&self.arrow_texture.bind_group),
+        _ => None,
+      } {
+        rpass.set_bind_group(2, bind_group, &[]);
+      }
+
+      rpass.draw(0..6, i as u32..i as u32 + 1);
+
+      i += 1;
+    });
+  }
 }

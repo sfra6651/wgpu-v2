@@ -62,7 +62,6 @@ impl World {
     ai_system::update_ai(&mut self.em);
     self.update_player(input);
 
-    let t = Instant::now();
     movement_system::update_positions(&mut self.em);
 
     //// re-build after positions update
