@@ -1,25 +1,30 @@
 use std::sync::Arc;
 
-use glam::vec2;
+use glam::{Vec2, vec2};
 use wgpu::{ColorTargetState, CurrentSurfaceTexture, RenderPass};
 use winit::window::Window;
 
 use crate::{
-  entity::{Action, Entity, Facing, Layer, Position, RenderSize, Rotation, TextureType},
+  entity::{Entity, Layer, Position, RenderSize, Rotation, TextureType},
   renderer::{
     character_sprite_set::CharacterSpriteSet,
     model_transforms::ModelTransforms,
     pipeline::{CreatePipelineDesc, Pipeline, PipelineType},
-    texture::Texture,
+    texture::TextureLoader,
+    ui_transforms::UiTransfroms,
     uniform::{UniformManager, UniformVariant},
     vertex::{Vertex, grid_vertices, unit_square},
   },
+  ui::{AnchorPoint, RenderPos, UiSize},
   utils::ui_projection_matrix,
   world::World,
 };
 
-pub mod character_sprite_set;
+// transforms
 pub mod model_transforms;
+pub mod ui_transforms;
+//
+pub mod character_sprite_set;
 pub mod pipeline;
 pub mod texture;
 pub mod uniform;
@@ -35,6 +40,11 @@ pub struct DrawEntity {
   pub texture_type: TextureType,
 }
 
+pub struct UiElement {
+  pub pos: Vec2,
+  pub size: UiSize,
+}
+
 pub struct Renderer {
   surface: wgpu::Surface<'static>,
   adapter: wgpu::Adapter,
@@ -46,10 +56,13 @@ pub struct Renderer {
   grid_buffer: Option<wgpu::Buffer>,
   uniform_manager: UniformManager,
   model_transforms: ModelTransforms,
-  sprite_set: CharacterSpriteSet,
+  ui_transforms: UiTransfroms,
+  texture_loader: TextureLoader,
+  player_sprite_set: CharacterSpriteSet,
   goblin_sprite_set: CharacterSpriteSet,
-  arrow_texture: Texture,
+  arrow_texture: wgpu::BindGroup,
   draw_entities: Vec<DrawEntity>,
+  ui_elemets: Vec<UiElement>,
 }
 
 impl Renderer {
@@ -111,9 +124,13 @@ impl Renderer {
 
     let model_transforms = ModelTransforms::new(&device);
 
-    let sprite_set = CharacterSpriteSet::new(&device, &queue, "conduit");
-    let goblin_sprite_set = CharacterSpriteSet::new(&device, &queue, "goblin");
-    let arrow_texture = Texture::new(
+    let ui_transforms = UiTransfroms::new(&device);
+
+    let texture_loader = TextureLoader::new(&device);
+
+    let sprite_set = CharacterSpriteSet::new(&texture_loader, &device, &queue, "conduit");
+    let goblin_sprite_set = CharacterSpriteSet::new(&texture_loader, &device, &queue, "goblin");
+    let arrow_texture = texture_loader.load(
       &device,
       &queue,
       &format!("src/assets/objects/arrow.png"),
@@ -131,10 +148,13 @@ impl Renderer {
       pipelines: std::array::from_fn(|_| None),
       uniform_manager,
       model_transforms,
-      sprite_set,
+      ui_transforms,
+      texture_loader,
+      player_sprite_set: sprite_set,
       goblin_sprite_set,
       arrow_texture,
       draw_entities: Vec::new(),
+      ui_elemets: Vec::new(),
     }
   }
 
@@ -146,19 +166,9 @@ impl Renderer {
       wgpu::ShaderSource::Wgsl(include_str!("../shaders/texture.wgsl").into()),
       CreatePipelineDesc {
         bind_group_layouts: &[
-          Some(
-            &self
-              .uniform_manager
-              .get(UniformVariant::WorldSpaceProjection)
-              .bind_group_layout,
-          ),
+          Some(&self.uniform_manager.bind_group_layout),
           Some(&self.model_transforms.bind_group_layout),
-          Some(
-            &self
-              .sprite_set
-              .resolve_raw(Action::Idle, Facing::S, 0)
-              .bind_group_layout,
-          ),
+          Some(&self.texture_loader.bind_group_layout),
         ],
         targets: &[Some(ColorTargetState {
           format: swapchain_format,
@@ -173,12 +183,7 @@ impl Renderer {
       &self.device,
       wgpu::ShaderSource::Wgsl(include_str!("../shaders/grid.wgsl").into()),
       CreatePipelineDesc {
-        bind_group_layouts: &[Some(
-          &self
-            .uniform_manager
-            .get(UniformVariant::WorldSpaceProjection)
-            .bind_group_layout,
-        )],
+        bind_group_layouts: &[Some(&self.uniform_manager.bind_group_layout)],
         targets: &[Some(swapchain_format.into())],
         primitive: wgpu::PrimitiveState {
           topology: wgpu::PrimitiveTopology::LineList,
@@ -191,13 +196,15 @@ impl Renderer {
       &self.device,
       wgpu::ShaderSource::Wgsl(include_str!("../shaders/ui_shader.wgsl").into()),
       CreatePipelineDesc {
-        bind_group_layouts: &[Some(
-          &self
-            .uniform_manager
-            .get(UniformVariant::ScreenSpaceProjection)
-            .bind_group_layout,
-        )],
-        targets: &[Some(swapchain_format.into())],
+        bind_group_layouts: &[
+          Some(&self.uniform_manager.bind_group_layout),
+          Some(&self.ui_transforms.bind_group_layout),
+        ],
+        targets: &[Some(ColorTargetState {
+          format: swapchain_format,
+          blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+          write_mask: wgpu::ColorWrites::ALL,
+        })],
         primitive: wgpu::PrimitiveState::default(),
       },
     );
@@ -207,12 +214,7 @@ impl Renderer {
       wgpu::ShaderSource::Wgsl(include_str!("../shaders/square.wgsl").into()),
       CreatePipelineDesc {
         bind_group_layouts: &[
-          Some(
-            &self
-              .uniform_manager
-              .get(UniformVariant::WorldSpaceProjection)
-              .bind_group_layout,
-          ),
+          Some(&self.uniform_manager.bind_group_layout),
           Some(&self.model_transforms.bind_group_layout),
         ],
         targets: &[Some(swapchain_format.into())],
@@ -286,7 +288,18 @@ impl Renderer {
       .write_transforms(&self.draw_entities, &self.queue);
   }
 
-  fn prepare_ui_renderables(&mut self, window: &Window, world: &World) {}
+  fn prepare_ui_renderables(&mut self, world: &World) {
+    self.ui_elemets.clear();
+
+    for (&ap, &e) in world.em.anchor_points.iter() {
+      if let Some(&size) = world.em.ui_size.get(e) {
+        self.ui_elemets.push(UiElement { pos: ap.pos, size });
+      };
+    }
+    self
+      .ui_transforms
+      .write_transforms(&self.ui_elemets, &self.queue);
+  }
 
   fn write_uniforms(&mut self, window: &Window, world: &World) {
     let width = window.inner_size().width;
@@ -302,7 +315,7 @@ impl Renderer {
       bytemuck::cast_slice(&[view_proj.to_cols_array()]),
     );
 
-    let ui_proj = ui_projection_matrix(vec2(width as f32, height as f32));
+    let ui_proj = ui_projection_matrix(vec2(1920.0, 1080.0));
     self.queue.write_buffer(
       &self
         .uniform_manager
@@ -317,7 +330,7 @@ impl Renderer {
     // pre-render steps
     self.prepare_draw_entities(world);
     self.write_uniforms(window, world);
-    self.prepare_ui_renderables(window, world);
+    self.prepare_ui_renderables(world);
 
     let frame = match self.surface.get_current_texture() {
       CurrentSurfaceTexture::Success(frame) => frame,
@@ -380,7 +393,13 @@ impl Renderer {
         .bind_group,
       &[],
     );
-    rpass.draw(0..6, 0..1);
+    rpass.set_bind_group(1, &self.ui_transforms.bind_group, &[]);
+
+    let mut i = 0;
+    self.ui_elemets.iter().for_each(|element| {
+      rpass.draw(0..6, i as u32..i as u32 + 1);
+      i += 1;
+    });
   }
 
   fn render_grid_lines(&self, rpass: &mut RenderPass) {
@@ -425,18 +444,9 @@ impl Renderer {
     self.draw_entities.iter().for_each(|draw_e| {
       let e = draw_e.e;
       if let Some(bind_group) = match draw_e.texture_type {
-        TextureType::Player => self
-          .sprite_set
-          .resolve(&world.em, e)
-          .as_ref()
-          .map(|sprite_set| &sprite_set.bind_group),
-        TextureType::Goblin => self
-          .goblin_sprite_set
-          .resolve(&world.em, e)
-          .as_ref()
-          .map(|sprite_set| &sprite_set.bind_group),
-        TextureType::Arrow => Some(&self.arrow_texture.bind_group),
-        _ => None,
+        TextureType::Player => self.player_sprite_set.resolve(&world.em, e),
+        TextureType::Goblin => self.goblin_sprite_set.resolve(&world.em, e),
+        TextureType::Arrow => Some(&self.arrow_texture),
       } {
         rpass.set_bind_group(2, bind_group, &[]);
       }

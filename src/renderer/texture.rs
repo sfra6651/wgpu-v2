@@ -1,10 +1,56 @@
-pub struct Texture {
+pub struct TextureLoader {
   pub bind_group_layout: wgpu::BindGroupLayout,
-  pub bind_group: wgpu::BindGroup,
+  pub sampler: wgpu::Sampler,
 }
 
-impl Texture {
-  pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, path: &str, name: &str) -> Self {
+impl TextureLoader {
+  pub fn new(device: &wgpu::Device) -> Self {
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+      label: Some("texture sampler"),
+      address_mode_u: wgpu::AddressMode::ClampToEdge,
+      address_mode_v: wgpu::AddressMode::ClampToEdge,
+      address_mode_w: wgpu::AddressMode::ClampToEdge,
+      mag_filter: wgpu::FilterMode::Nearest,
+      min_filter: wgpu::FilterMode::Nearest,
+      mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+      ..Default::default()
+    });
+
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+      label: Some("texture bind group layout"),
+      entries: &[
+        wgpu::BindGroupLayoutEntry {
+          binding: 0,
+          visibility: wgpu::ShaderStages::FRAGMENT,
+          ty: wgpu::BindingType::Texture {
+            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+            view_dimension: wgpu::TextureViewDimension::D2,
+            multisampled: false,
+          },
+          count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+          binding: 1,
+          visibility: wgpu::ShaderStages::FRAGMENT,
+          ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+          count: None,
+        },
+      ],
+    });
+
+    Self {
+      bind_group_layout,
+      sampler,
+    }
+  }
+
+  pub fn load(
+    &self,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    path: &str,
+    name: &str,
+  ) -> wgpu::BindGroup {
     let Ok(dyn_img) = image::open(path) else {
       panic!("failed to load image at {}", path);
     };
@@ -49,42 +95,9 @@ impl Texture {
 
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-      label: Some(&format!("{} sampler", name)),
-      address_mode_u: wgpu::AddressMode::ClampToEdge,
-      address_mode_v: wgpu::AddressMode::ClampToEdge,
-      address_mode_w: wgpu::AddressMode::ClampToEdge,
-      mag_filter: wgpu::FilterMode::Nearest,
-      min_filter: wgpu::FilterMode::Nearest,
-      mipmap_filter: wgpu::MipmapFilterMode::Nearest,
-      ..Default::default()
-    });
-
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-      label: Some(&format!("{} bind group layout", name)),
-      entries: &[
-        wgpu::BindGroupLayoutEntry {
-          binding: 0,
-          visibility: wgpu::ShaderStages::FRAGMENT,
-          ty: wgpu::BindingType::Texture {
-            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-            view_dimension: wgpu::TextureViewDimension::D2,
-            multisampled: false,
-          },
-          count: None,
-        },
-        wgpu::BindGroupLayoutEntry {
-          binding: 1,
-          visibility: wgpu::ShaderStages::FRAGMENT,
-          ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-          count: None,
-        },
-      ],
-    });
-
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
       label: Some(&format!("{} bind group", name)),
-      layout: &bind_group_layout,
+      layout: &self.bind_group_layout,
       entries: &[
         wgpu::BindGroupEntry {
           binding: 0,
@@ -92,14 +105,11 @@ impl Texture {
         },
         wgpu::BindGroupEntry {
           binding: 1,
-          resource: wgpu::BindingResource::Sampler(&sampler),
+          resource: wgpu::BindingResource::Sampler(&self.sampler),
         },
       ],
     });
 
-    Self {
-      bind_group_layout,
-      bind_group,
-    }
+    bind_group
   }
 }

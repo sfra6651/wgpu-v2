@@ -48,6 +48,10 @@ impl App {
     let size = self.world.as_ref().unwrap().size;
     self.renderer.as_mut().unwrap().upload_grid(size, 1.0); // 1.0-unit spacing
     self.renderer.as_mut().unwrap().upload_square();
+
+    if let Some(world) = self.world.as_mut() {
+      world.spawn_ui();
+    }
   }
 }
 

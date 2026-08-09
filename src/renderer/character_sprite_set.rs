@@ -1,15 +1,15 @@
 use crate::{
   entity::{self, Action, AnimTick, Entity, EntityManager, Facing},
-  renderer::texture::Texture,
+  renderer::texture::TextureLoader,
 };
 
 pub struct CharacterSpriteSet {
-  idle: [Texture; 8],
-  run: [[Texture; 4]; 8],
+  idle: [wgpu::BindGroup; 8],
+  run: [[wgpu::BindGroup; 4]; 8],
 }
 
 impl CharacterSpriteSet {
-  pub fn resolve(&self, em: &EntityManager, e: Entity) -> Option<&Texture> {
+  pub fn resolve(&self, em: &EntityManager, e: Entity) -> Option<&wgpu::BindGroup> {
     let &facing = em.facings.get(e)?;
     let &action = em.actions.get(e)?;
     let &AnimTick(anim_tick) = em.anim_ticks.get(e)?;
@@ -24,7 +24,7 @@ impl CharacterSpriteSet {
     }
   }
 
-  pub fn resolve_raw(&self, action: Action, facing: Facing, tick: usize) -> &Texture {
+  pub fn resolve_raw(&self, action: Action, facing: Facing, tick: usize) -> &wgpu::BindGroup {
     match action {
       Action::Idle => &self.idle[facing.usize()],
       Action::Run => {
@@ -35,10 +35,10 @@ impl CharacterSpriteSet {
     }
   }
 
-  pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, name: &str) -> Self {
-    let idle_textures: [Texture; 8] = std::array::from_fn(|i| {
+  pub fn new(tl: &TextureLoader, device: &wgpu::Device, queue: &wgpu::Queue, name: &str) -> Self {
+    let idle_textures: [wgpu::BindGroup; 8] = std::array::from_fn(|i| {
       let n = i + 1;
-      Texture::new(
+      tl.load(
         device,
         queue,
         &format!("src/assets/{}/{}_000{}.png", name, name, n),
@@ -47,11 +47,11 @@ impl CharacterSpriteSet {
     });
 
     let directions = ["s", "se", "e", "ne", "n", "nw", "w", "sw"];
-    let run_textures: [[Texture; 4]; 8] = std::array::from_fn(|i| {
+    let run_textures: [[wgpu::BindGroup; 4]; 8] = std::array::from_fn(|i| {
       let code = directions[i];
       std::array::from_fn(|j| {
         let n = j + 1;
-        Texture::new(
+        tl.load(
           device,
           queue,
           &format!("src/assets/{}/run_{}_000{}.png", name, code, n),

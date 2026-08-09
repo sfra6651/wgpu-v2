@@ -7,6 +7,7 @@ use crate::{
     Rotation, Speed, TextureType,
   },
   systems::ability_system::{Ability, AbilityName},
+  ui::{AnchorPoint, RenderPos, UiSize},
   world,
 };
 
@@ -76,5 +77,12 @@ pub fn frontal_cone(em: &mut EntityManager, pos: Vec2, dir: Vec2) -> Entity {
   em.attach(e, DirIntent(dir));
   em.attach(e, Layer::WorldSpace);
   em.attach(e, LifeTime(60.0));
+  e
+}
+
+pub fn ui_box(em: &mut EntityManager, ap: AnchorPoint, size: Vec2) -> Entity {
+  let e = em.create();
+  em.attach(e, ap);
+  em.attach(e, UiSize(size));
   e
 }

@@ -1,6 +1,6 @@
 use glam::Vec2;
 
-use crate::entity::{DirIntent, Entity, EntityManager, Position, Speed};
+use crate::entity::{DirIntent, EntityManager, Position, Speed};
 
 pub fn update_ai(em: &mut EntityManager) {
   use crate::entity::AiType::*;
@@ -31,7 +31,6 @@ pub fn update_ai(em: &mut EntityManager) {
           Vec2::ZERO
         }
       }
-      None => {}
     }
   }
 }
