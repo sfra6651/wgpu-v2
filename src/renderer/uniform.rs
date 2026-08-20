@@ -1,7 +1,6 @@
 #[repr(usize)]
 pub enum UniformVariant {
   WorldSpaceProjection,
-  ScreenSpaceProjection,
   Count,
 }
 
@@ -17,15 +16,11 @@ pub struct UniformManager {
 
 impl UniformVariant {
   pub const COUNT: usize = UniformVariant::Count as usize;
-  pub const ALL: [UniformVariant; Self::COUNT] = [
-    UniformVariant::WorldSpaceProjection,
-    UniformVariant::ScreenSpaceProjection,
-  ];
+  pub const ALL: [UniformVariant; Self::COUNT] = [UniformVariant::WorldSpaceProjection];
 
   pub fn name(&self) -> &'static str {
     match self {
       UniformVariant::WorldSpaceProjection => "camera",
-      UniformVariant::ScreenSpaceProjection => "ui",
       UniformVariant::Count => unreachable!("Count is not a real uniform"),
     }
   }
@@ -33,7 +28,6 @@ impl UniformVariant {
   pub fn size(&self) -> u64 {
     match self {
       UniformVariant::WorldSpaceProjection => 64,
-      UniformVariant::ScreenSpaceProjection => 64,
       UniformVariant::Count => unreachable!("Count is not a real uniform"),
     }
   }

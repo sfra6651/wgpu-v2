@@ -5,10 +5,7 @@ use std::{
 
 use glam::Vec2;
 
-use crate::{
-  systems::ability_system::Ability,
-  ui::{AnchorPoint, RenderPos, UiSize},
-};
+use crate::systems::ability_system::Ability;
 
 pub const TICKS_PER_FRAME: usize = 8;
 pub const WALK_FRAMES: usize = 4;
@@ -312,11 +309,6 @@ components! {
 
   //render specifics
   texture_types: TextureType,
-
-  //ui
-  anchor_points: AnchorPoint,
-  render_pos: RenderPos,
-  ui_size: UiSize,
 }
 
 impl EntityManager {

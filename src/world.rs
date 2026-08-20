@@ -1,12 +1,12 @@
 use std::time::Instant;
 
-use glam::{Vec2, vec2};
+use glam::Vec2;
 use winit::keyboard::KeyCode;
 
 use crate::{
   camera::Camera,
-  entity::{DirIntent, Entity, EntityManager, Health, LastShotAt, Position, Speed},
-  entity_templates::{arrow, player, ui_box},
+  entity::{DirIntent, Entity, EntityManager, LastShotAt, Position, Speed},
+  entity_templates::{arrow, player},
   player_controller::{self, InputState},
   spatial_grid::SpatialGrid,
   systems::{
@@ -16,7 +16,6 @@ use crate::{
     lifetime_system::handle_lifetimes,
     movement_system,
   },
-  ui::{Anchor, AnchorPoint},
 };
 
 pub const WIDTH: f32 = 30.0;
@@ -53,14 +52,6 @@ impl World {
       position_updates: Vec::new(),
       removals: Vec::new(),
     }
-  }
-
-  pub fn spawn_ui(&mut self) {
-    let _ = ui_box(
-      &mut self.em,
-      AnchorPoint::new(Anchor::Center, vec2(500.0, 500.0)),
-      vec2(500.0, 500.0),
-    );
   }
 
   pub fn update(&mut self, input: &InputState) {

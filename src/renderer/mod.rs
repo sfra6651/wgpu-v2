@@ -11,18 +11,14 @@ use crate::{
     model_transforms::ModelTransforms,
     pipeline::{CreatePipelineDesc, Pipeline, PipelineType},
     texture::TextureLoader,
-    ui_transforms::UiTransfroms,
     uniform::{UniformManager, UniformVariant},
     vertex::{Vertex, grid_vertices, unit_square},
   },
-  ui::{AnchorPoint, RenderPos, UiSize},
-  utils::ui_projection_matrix,
   world::World,
 };
 
 // transforms
 pub mod model_transforms;
-pub mod ui_transforms;
 //
 pub mod character_sprite_set;
 pub mod pipeline;
@@ -40,11 +36,6 @@ pub struct DrawEntity {
   pub texture_type: TextureType,
 }
 
-pub struct UiElement {
-  pub pos: Vec2,
-  pub size: UiSize,
-}
-
 pub struct Renderer {
   surface: wgpu::Surface<'static>,
   adapter: wgpu::Adapter,
@@ -56,13 +47,11 @@ pub struct Renderer {
   grid_buffer: Option<wgpu::Buffer>,
   uniform_manager: UniformManager,
   model_transforms: ModelTransforms,
-  ui_transforms: UiTransfroms,
   texture_loader: TextureLoader,
   player_sprite_set: CharacterSpriteSet,
   goblin_sprite_set: CharacterSpriteSet,
   arrow_texture: wgpu::BindGroup,
   draw_entities: Vec<DrawEntity>,
-  ui_elemets: Vec<UiElement>,
 }
 
 impl Renderer {
@@ -124,8 +113,6 @@ impl Renderer {
 
     let model_transforms = ModelTransforms::new(&device);
 
-    let ui_transforms = UiTransfroms::new(&device);
-
     let texture_loader = TextureLoader::new(&device);
 
     let sprite_set = CharacterSpriteSet::new(&texture_loader, &device, &queue, "conduit");
@@ -148,13 +135,11 @@ impl Renderer {
       pipelines: std::array::from_fn(|_| None),
       uniform_manager,
       model_transforms,
-      ui_transforms,
       texture_loader,
       player_sprite_set: sprite_set,
       goblin_sprite_set,
       arrow_texture,
       draw_entities: Vec::new(),
-      ui_elemets: Vec::new(),
     }
   }
 
@@ -189,23 +174,6 @@ impl Renderer {
           topology: wgpu::PrimitiveTopology::LineList,
           ..Default::default()
         },
-      },
-    );
-
-    self.pipelines[PipelineType::Ui as usize] = Pipeline::new(
-      &self.device,
-      wgpu::ShaderSource::Wgsl(include_str!("../shaders/ui_shader.wgsl").into()),
-      CreatePipelineDesc {
-        bind_group_layouts: &[
-          Some(&self.uniform_manager.bind_group_layout),
-          Some(&self.ui_transforms.bind_group_layout),
-        ],
-        targets: &[Some(ColorTargetState {
-          format: swapchain_format,
-          blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-          write_mask: wgpu::ColorWrites::ALL,
-        })],
-        primitive: wgpu::PrimitiveState::default(),
       },
     );
 
@@ -288,19 +256,6 @@ impl Renderer {
       .write_transforms(&self.draw_entities, &self.queue);
   }
 
-  fn prepare_ui_renderables(&mut self, world: &World) {
-    self.ui_elemets.clear();
-
-    for (&ap, &e) in world.em.anchor_points.iter() {
-      if let Some(&size) = world.em.ui_size.get(e) {
-        self.ui_elemets.push(UiElement { pos: ap.pos, size });
-      };
-    }
-    self
-      .ui_transforms
-      .write_transforms(&self.ui_elemets, &self.queue);
-  }
-
   fn write_uniforms(&mut self, window: &Window, world: &World) {
     let width = window.inner_size().width;
     let height = window.inner_size().height;
@@ -314,23 +269,12 @@ impl Renderer {
       0,
       bytemuck::cast_slice(&[view_proj.to_cols_array()]),
     );
-
-    let ui_proj = ui_projection_matrix(vec2(1920.0, 1080.0));
-    self.queue.write_buffer(
-      &self
-        .uniform_manager
-        .get(UniformVariant::ScreenSpaceProjection)
-        .buffer,
-      0,
-      bytemuck::cast_slice(&[ui_proj.to_cols_array()]),
-    );
   }
 
   pub fn render(&mut self, window: &Window, world: &World) {
     // pre-render steps
     self.prepare_draw_entities(world);
     self.write_uniforms(window, world);
-    self.prepare_ui_renderables(world);
 
     let frame = match self.surface.get_current_texture() {
       CurrentSurfaceTexture::Success(frame) => frame,
@@ -372,34 +316,10 @@ impl Renderer {
       // do actual rendering work
       self.render_grid_lines(&mut rpass);
       self.render_entities(&mut rpass, world);
-      self.render_ui(&mut rpass);
     }
 
     self.queue.submit(Some(encoder.finish()));
     frame.present();
-  }
-
-  fn render_ui(&self, rpass: &mut RenderPass) {
-    let Some(pipeline) = &self.pipelines[PipelineType::Ui as usize] else {
-      return;
-    };
-    rpass.set_pipeline(&pipeline.pipeline);
-    rpass.set_vertex_buffer(0, self.square_buffer.slice(..));
-    rpass.set_bind_group(
-      0,
-      &self
-        .uniform_manager
-        .get(UniformVariant::ScreenSpaceProjection)
-        .bind_group,
-      &[],
-    );
-    rpass.set_bind_group(1, &self.ui_transforms.bind_group, &[]);
-
-    let mut i = 0;
-    self.ui_elemets.iter().for_each(|element| {
-      rpass.draw(0..6, i as u32..i as u32 + 1);
-      i += 1;
-    });
   }
 
   fn render_grid_lines(&self, rpass: &mut RenderPass) {

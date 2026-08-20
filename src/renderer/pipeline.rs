@@ -6,7 +6,6 @@ pub enum PipelineType {
   Texture,
   Gridlines,
   SimpleRect,
-  Ui,
   Count,
 }
 

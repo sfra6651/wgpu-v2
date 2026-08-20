@@ -13,8 +13,6 @@ use crate::world::World;
 
 //game systems
 mod systems;
-//ui
-mod ui;
 //
 mod camera;
 mod entity;
@@ -48,10 +46,6 @@ impl App {
     let size = self.world.as_ref().unwrap().size;
     self.renderer.as_mut().unwrap().upload_grid(size, 1.0); // 1.0-unit spacing
     self.renderer.as_mut().unwrap().upload_square();
-
-    if let Some(world) = self.world.as_mut() {
-      world.spawn_ui();
-    }
   }
 }
 
@@ -73,7 +67,7 @@ impl ApplicationHandler for App {
     }
   }
 
-  fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+  fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
     match event {
       WindowEvent::CloseRequested => {
         event_loop.exit();
